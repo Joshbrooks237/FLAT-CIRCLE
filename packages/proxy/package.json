@@ -1,0 +1,39 @@
+{
+  "name": "@flat-circle/proxy",
+  "version": "0.1.0",
+  "description": "Layer 13 — Frame Narrative Proxy Wrapper. Point DNS at Flat Circle. Done.",
+  "main": "./dist/index.cjs",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": "./dist/index.js",
+      "require": "./dist/index.cjs",
+      "types": "./dist/index.d.ts"
+    }
+  },
+  "bin": {
+    "flat-circle-proxy": "./dist/cli.js"
+  },
+  "scripts": {
+    "build": "tsup",
+    "dev": "tsup --watch",
+    "start": "node dist/cli.js",
+    "typecheck": "tsc --noEmit",
+    "clean": "rm -rf dist"
+  },
+  "dependencies": {
+    "@flat-circle/core": "workspace:*",
+    "hono": "^4.3.0",
+    "js-yaml": "^4.1.0"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "^4.0.0",
+    "@hono/node-server": "^1.11.0",
+    "tsup": "^8.0.0",
+    "typescript": "^5.4.0",
+    "@types/node": "^20.0.0",
+    "@types/js-yaml": "^4.0.9"
+  },
+  "keywords": ["security", "proxy", "middleware", "flat-circle", "honeypot"]
+}

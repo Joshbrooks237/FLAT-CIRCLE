@@ -1,0 +1,21 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  html, body, #root {
+    height: 100%;
+    font-family: 'JetBrains Mono', 'Fira Code', Consolas, monospace;
+  }
+}
+
+@layer utilities {
+  .text-slime { color: #00f07a; }
+  .border-slime { border-color: #00f07a; }
+  .glow-slime { text-shadow: 0 0 8px #00f07a66, 0 0 16px #00f07a33; }
+  .glow-slime-intense { text-shadow: 0 0 8px #00f07a, 0 0 20px #00f07a88, 0 0 40px #00f07a44; }
+  .bg-slime-dim { background-color: rgba(0, 240, 122, 0.08); }
+  .bg-slime-glow { background-color: rgba(0, 240, 122, 0.15); }
+  .ring-slime { box-shadow: 0 0 0 1px rgba(0, 240, 122, 0.3); }
+  .ring-slime-outer { box-shadow: 0 0 0 2px rgba(0, 240, 122, 0.15), 0 0 60px rgba(0, 240, 122, 0.05); }
+}
