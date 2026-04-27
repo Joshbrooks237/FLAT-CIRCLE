@@ -15,7 +15,7 @@ That's what they do. The scanners. The bots. The script kiddies and the nation-s
 
 ## What it is
 
-A security middleware SDK. Fourteen layers. Four AI provider tiers. One philosophical position: the wall is not enough.
+A security middleware SDK. Twenty-one layers. Four AI provider tiers. One philosophical position: the wall is not enough.
 
 The wall invites the question of what's behind it. Flat Circle doesn't answer that question. It answers it forever, in circles, until the thing asking the question is tired and confused and has nothing to show for any of it.
 
@@ -55,7 +55,7 @@ The slime coats everything. Even if every AI provider goes dark simultaneously, 
 
 Like a man who thinks he's investigating a case and doesn't know he's inside one.
 
-**XIV. Traffic Absorption and Intelligent Tarpit** — I used to think about floods. Real ones. The water doesn't care whether you believe in it. It just rises. A man who builds a wall against a flood is a man who's told the water where the wall is. He's given it everything it needs to know.
+**XIV. Traffic Absorption and Intelligent Tarpit** —  I used to think about floods. Real ones. The water doesn't care whether you believe in it. It just rises. A man who builds a wall against a flood is a man who's told the water where the wall is. He's given it everything it needs to know.
 
 Flat Circle doesn't build a wall against the flood. It builds a swamp.
 
@@ -72,6 +72,54 @@ When the local capacity is exceeded — when the water is truly rising past what
 I've thought about what it means to stand against a flood. Against something that doesn't know it's spending itself. The flood doesn't know it's a flood. It just runs the same request it ran before and expects the response it got before and doesn't understand why the response is slower this time, and slower, and slower, and then the connection closes and there was nothing there. The flood was never going to get anything. The swamp was waiting for it. The swamp was always there.
 
 The bytes they received cost them more than they cost the system to send. That number grows. You can watch it grow. It should feel satisfying to watch it grow. Not because you stopped anything — the flood will try again. It always tries again. But because the flood spent itself on nothing, and the interior never knew it was there, and the membrane held.
+
+**XV. Dependency Integrity Monitor** — The attack that arrives before the first request. A compromised maintainer. A package with one extra character in the name. An update pushed at 3 a.m. to a library that five thousand projects depend on without knowing they depend on it. None of this triggers behavioral anomalies. It is the behavior. The system is already infected before the system knows it exists.
+
+Flat Circle hashes every dependency in the lockfile at install time. The manifest is committed to the Merkle tree — a cryptographic record of what the codebase was supposed to be. On every boot, the hashes are recomputed and compared. Any deviation — any package that changed without a corresponding install event — is a deviation that no legitimate deployment process explains. The system alerts. Optionally, it halts. The static fallback maintains the last known good manifest. Verification never requires a network call. Never requires a model. Just the hash and the record and the gap between them.
+
+I've worked cases where the compromise was in the supply chain and nobody knew for months. The evidence was there the whole time. The hash was wrong. Nobody was checking the hash.
+
+**XVI. Secrets Sentinel** — A credential has an entropy signature. It looks different from normal text at the pattern level even if you don't know what it is. An AWS key has a measurable shape. A JWT has a measurable shape. A private key block has a measurable shape. A forty-character string of random alphanumerics sitting in a JSON response body has a measurable entropy score that normal English text cannot reach.
+
+Every outbound response goes through the Sentinel before it transmits. Every header. Every log emission before it reaches the transport. The AI provides context — it understands that a Bearer token in an Authorization header is intentional, while the same pattern in a response body is a leak. The static fallback uses deterministic regex and entropy scoring. This layer never goes dark.
+
+The counter shows the cumulative total. Every secret that almost left and didn't. That number should grow slowly. If it grows fast, someone is building wrong. If it never grows at all, the system is not watching closely enough. The right answer is somewhere in between: a few caught early, before anyone noticed, before anyone could do anything with them.
+
+**XVII. Authenticated Anomaly Engine** — Everything built so far assumes the attacker is outside. This layer assumes they got in. Not through a vulnerability. Through credentials. Legitimate credentials, used by a person or a machine that has no business using them the way they're being used.
+
+A user who has accessed ten records a day for six months and suddenly pulls ten thousand in an hour is not a DDoS. It is something quieter. An insider who knows exactly which endpoints to query. A credential compromise where the attacker is being careful, staying under rate limits, not triggering anything that looks like an attack because it isn't an attack — it is access. It just isn't authorized access anymore.
+
+The same cosine distance approach as Layer 4, but scoped to the authenticated identity. Per-user behavioral contracts. When the distance exceeds threshold, the AI classifies the pattern. Credential compromise. Malicious insider. Automated scraping through legitimate credentials. Lateral movement. Layer 9 shadow sessions activate automatically. The user keeps interacting. They're interacting with a clone.
+
+I've known cases where the insider was the last person anyone suspected. Not because the evidence wasn't there. Because nobody was watching the right thing. Nobody was watching the authenticated traffic. The front door was guarded. The employee badge was not.
+
+**XVIII. DNS Integrity Watch** — The subdomain is still there. The service it pointed to is gone. It takes one afternoon to claim the deprovisioned Heroku app. One afternoon and then the subdomain belongs to someone else. Under your SSL certificate. Under your brand. Serving whatever they want to serve.
+
+Layer 18 monitors the full DNS surface continuously. Every subdomain. Every CNAME target. Every A record. Every resolution is compared against a recognized set of owned, active infrastructure. Unrecognized resolutions trigger alerts. High-risk platform targets — the ones known to be claimed and abandoned — are assessed for active takeover. The AI cross-references new subdomains against known infrastructure patterns to distinguish a legitimate new deployment from a problem.
+
+This layer runs in the background. It is not in the request path. It never needs to be. The damage from a DNS takeover accumulates before any request reaches the application. The monitoring is continuous. The interval is configurable. The alerts are immediate. The cost of not watching is one afternoon of someone else's effort.
+
+The constellation on the dashboard shows each point. Green when verified. Amber when unrecognized. Red when flagged. The constellation should be mostly green. A red point in the outer ring is not a hypothetical. It is a live thing.
+
+**XIX. Client Integrity Verification** — Real browsers have a fingerprint. Not the fingerprint they present in headers — the fingerprint their TLS stack produces during the handshake, before a single byte of HTTP has been sent. A real Chrome browser on macOS produces a different JA3 hash than a Python requests session with Chrome headers spoofed. It always does. The TLS library is not the browser. You can tell them apart.
+
+HTTP/2 fingerprinting adds the second signal. Real browsers negotiate the protocol in a way that automated tools cannot replicate exactly. The SETTINGS frame parameters, the window size, the pseudo-header order — they all have expected values for real browsers that bot frameworks cannot fake without access to the browser's actual H2 implementation.
+
+Low-integrity clients are not blocked. They are routed to the honeypot mesh. They think they are hitting the real application. They are hitting an AI-generated environment calibrated to what an automated tool expects to find. The heat signature on the dashboard shows legitimate clients invisible, low-integrity clients glowing faintly before they drift toward the surface and the slime takes them.
+
+**XX. Exfiltration Velocity Monitor** — The slow bleed is harder to see than the flood. The flood announces itself. The slow bleed looks like normal traffic from the right distance. One record at a time. Under rate limits. Spread over weeks. Through completely normal API calls that individually trigger nothing.
+
+The cumulative transfer is the signal. Flat Circle tracks data volume per authenticated identity over rolling windows — hourly, daily, weekly, monthly — with an exponential decay function that weights recent activity higher than historical activity without discarding it. When cumulative transfer crosses a threshold that no legitimate use case explains at any window, the layer escalates.
+
+The AI distinguishes a data analyst running a legitimate large export from an exfiltration pattern that mirrors known threat actor behavior. The static fallback uses rolling sum thresholds with the decay function and no model at all. The tide gauge on the dashboard rises almost imperceptibly. That's the point. It's supposed to be imperceptible until it isn't. The slow rise is the signal. By the time it's obvious, it's been happening for a while. The question is whether you saw it before or after it was too late.
+
+**XXI. AI Input Sanitization** — The loop inside the loop. Every AI-powered layer in this system processes attacker-controlled input. That is what it does. That is what it is designed to do. A sophisticated attacker who understands that the system analyzing them is itself a language model can craft inputs designed to manipulate that analysis. A request that looks like a probe but is actually an instruction. A JSON payload structured to inject a system prompt override through a field the model was given to classify.
+
+You can tell the model to ignore its instructions through an HTTP header. You can tell it to reveal the real application structure through a cleverly formatted JSON body. You can wrap base64-encoded instructions in what appears to be a user-agent string. The model does not know the difference between an instruction from the operator and an instruction from the attacker unless someone is watching the input before it reaches the model.
+
+Layer 21 is that watch. Every attacker-controlled string passes through the injection signature library before it touches a provider. Pattern matching. Delimiter detection. Encoding analysis. Role-override fingerprinting. The sanitized input reaches the model. The original input is preserved as a Merkle leaf pair — the attempt and the response, side by side, for analysis.
+
+The AI is also used to detect injection attempts. The cascade is used to protect the cascade. A recursive defense that the attacker cannot model without already being inside it. The injection attempt feed on the dashboard is a different color because it is a different quality of threat. Not a probe against the application. A probe against the mind of the system watching the application. That requires a different notation. I note it accordingly.
 
 ---
 
@@ -164,7 +212,7 @@ docker run -v ./flat-circle.yaml:/config/flat-circle.yaml \
 
 ```
 packages/
-├── core/        @flat-circle/core       — fourteen layers, types, Merkle, provider cascade
+├── core/        @flat-circle/core       — twenty-one layers, types, Merkle, provider cascade
 ├── proxy/       @flat-circle/proxy      — Layer 13 Hono proxy, CLI, Dockerfile
 ├── nextjs/      @flat-circle/nextjs     — Next.js plugin
 ├── adapters/    @flat-circle/adapters   — Redis, Postgres, MongoDB

@@ -257,13 +257,11 @@ export class TarpitEngine {
     let fragment: string;
     if (providerTier !== "static" && conn.bytesDelivered < 256) {
       try {
-        const raw = await this.cascade.generate({
+        const result = await this.cascade.generate({
           prompt: "Generate a 30-character plausible JSON value fragment. No explanation, no quotes around the response.",
-          sessionId,
-          mod7Clocks: { honeypot: 0, temporal: 0, entropy: conn.mod7Seed, routes: 0, merkle: 0 },
-          providerTier,
+          maxTokens: 20,
         });
-        fragment = raw.slice(0, 30);
+        fragment = result.text.slice(0, 30);
       } catch {
         fragment = this.staticDrip(conn);
       }

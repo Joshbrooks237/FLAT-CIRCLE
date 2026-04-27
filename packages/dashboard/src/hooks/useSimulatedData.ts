@@ -5,7 +5,15 @@ export type ThreatClass = "script-kiddie" | "automated-scanner" | "sophisticated
 
 export interface ThreatEvent {
   id: string;
-  type: "honeypot.triggered" | "honeypot.recursive.descent" | "canary.fired" | "behavioral.anomaly" | "session.shadowed" | "threat.classified" | "merkle.root.updated" | "provider.failover" | "campaign.matched" | "tarpit.connection.absorbed" | "flood.detected" | "upstream.escalated";
+  type: "honeypot.triggered" | "honeypot.recursive.descent" | "canary.fired" | "behavioral.anomaly" | "session.shadowed" | "threat.classified" | "merkle.root.updated" | "provider.failover" | "campaign.matched" | "tarpit.connection.absorbed" | "flood.detected" | "upstream.escalated"
+    | "dependency.mismatch.detected"
+    | "secret.redacted"
+    | "authn.anomaly.detected"
+    | "dns.record.unrecognized"
+    | "dns.takeover.suspected"
+    | "client.integrity.low"
+    | "exfiltration.velocity.exceeded"
+    | "ai.injection.attempt";
   timestamp: number;
   ip: string;
   sessionId: string;
@@ -65,6 +73,68 @@ export interface Layer14State {
   bytesWasted: number;
 }
 
+export interface DependencyIntegrityState {
+  status: "clean" | "unverified" | "compromised";
+  packageCount: number;
+  lastVerifiedAt: number;
+  mismatchCount: number;
+}
+
+export interface SecretsSentinelState {
+  totalRedacted: number;
+  recentRedactions: Array<{ field: string; patternType: string; timestamp: number }>;
+}
+
+export type AuthAnomalyClass = "credential-compromise" | "malicious-insider" | "automated-scraping" | "privilege-escalation" | "lateral-movement" | "bulk-exfiltration" | "unknown";
+
+export interface FlaggedIdentity {
+  id: string;
+  identityId: string;
+  anomalyClass: AuthAnomalyClass;
+  riskScore: number;
+  detectedAt: number;
+  requestCount: number;
+}
+
+export interface AuthnAnomalyState {
+  flaggedIdentities: FlaggedIdentity[];
+  totalAnomalies: number;
+}
+
+export type DNSPointStatus = "verified" | "unrecognized" | "flagged";
+
+export interface DNSPoint {
+  id: string;
+  hostname: string;
+  status: DNSPointStatus;
+  angleDeg: number;
+  distancePct: number;
+}
+
+export interface DNSIntegrityState {
+  points: DNSPoint[];
+  lastScanAt: number;
+  flaggedCount: number;
+}
+
+export interface ClientIntegrityState {
+  highCount: number;
+  mediumCount: number;
+  lowCount: number;
+  routedToHoneypot: number;
+}
+
+export interface ExfiltrationState {
+  tideLevel: number; // 0–100, slow-rising
+  identities: Array<{ id: string; identityId: string; bytesLast24h: number; thresholdBytes: number }>;
+  totalExceeded: number;
+}
+
+export interface AIInjectionState {
+  totalAttempts: number;
+  recentAttempts: Array<{ id: string; timestamp: number; pattern: string; sanitized: boolean }>;
+}
+
 export interface DashboardState {
   events: ThreatEvent[];
   shadowSessions: ShadowSession[];
@@ -83,6 +153,13 @@ export interface DashboardState {
   slimeEvents: SlimeEvent[];
   proxyActive: boolean;
   layer14: Layer14State;
+  layer15: DependencyIntegrityState;
+  layer16: SecretsSentinelState;
+  layer17: AuthnAnomalyState;
+  layer18: DNSIntegrityState;
+  layer19: ClientIntegrityState;
+  layer20: ExfiltrationState;
+  layer21: AIInjectionState;
 }
 
 export interface SlimeEvent {
@@ -153,6 +230,46 @@ const NARRATIONS = {
     "Local absorption capacity exceeded. Upstream escalation triggered. Cloudflare standing by. The flood spends itself against the absorber.",
     "Traffic volume crossed upstream threshold. AWS Shield integration active. Tarpit continues. Interior untouched.",
   ],
+  "secret.redacted": [
+    "Outbound response body contained AWS credential pattern. Redacted before transmission. Merkle leaf recorded. The leak almost happened.",
+    "JWT token detected in JSON response field 'token'. Entropy score 5.8 bits/char. Redacted. This was not the intended response field.",
+    "High-entropy string (5.2 bits/char) detected in response header X-Debug-Key. Redacted. Context: debug endpoint left active in production.",
+    "Private key block (PEM format) detected in response body. Redacted. Full chain of custody recorded in Merkle tree.",
+  ],
+  "authn.anomaly.detected": [
+    "Authenticated identity {identity} accessed {count} records in the last hour. Baseline: {baseline}/hr. Anomaly score: {score}. Shadow session activated.",
+    "Session {session} from {ip} — resource access pattern outside known scope. Privilege escalation attempt signature. Layer 9 clone initiated.",
+    "Identity {identity} accessing endpoints not in six-month behavioral baseline. Cosine distance: {score}. Classified: lateral movement.",
+    "Bulk data access pattern detected for {identity}. {count} records in {window}. This is not how a person moves. AI classification: automated scraping through legitimate credentials.",
+  ],
+  "dns.record.unrecognized": [
+    "Subdomain {host} resolves to resource not in recognized infrastructure. Pending verification. Could be new deployment. Could be something else.",
+    "CNAME {host} points to {target} — target not in known-good set. Monitoring. The quiet ones are the ones that cost you.",
+  ],
+  "dns.takeover.suspected": [
+    "CNAME {host} points to {target} — target appears to be unclaimed. Potential subdomain takeover. Immediate alert dispatched.",
+    "Subdomain {host} DNS target is a deprovisioned service. Takeover window open. The sign is still up. The building is empty.",
+  ],
+  "client.integrity.low": [
+    "Client from {ip} scored {score}/1.0 integrity. JA3 mismatch with claimed User-Agent. Routed to honeypot mesh. They think they're hitting the real app.",
+    "HTTP/2 fingerprint inconsistency detected — claimed Chrome, negotiated like Python requests. Integrity score: {score}. Honeypot engaged.",
+    "Headless browser signature detected from {ip}. Integrity: {score}. Tool: likely Playwright. Route: honeypot layer 2.",
+  ],
+  "exfiltration.velocity.exceeded": [
+    "Identity {identity} transferred {bytes} in the last 24 hours. Threshold: {threshold}. This is not analysis. This is extraction. Layer 9 shadow activated.",
+    "Cumulative transfer velocity for {identity} exceeds monthly baseline by {mult}x. Pattern consistent with slow-exfiltration campaign. Escalating.",
+    "Data transfer rate for {identity}: {rate} MB/hr sustained over {hours} hours. No legitimate use case explains this. AI classification: exfiltration.",
+  ],
+  "ai.injection.attempt": [
+    "Prompt injection detected in {field}: role-override instruction smuggled in HTTP header. Sanitized. Original preserved as Merkle leaf pair.",
+    "System prompt override attempt via JSON payload encoding in {field}. Instruction: '{snippet}'. Neutralized. This was deliberate.",
+    "Delimiter manipulation detected in {field} — attacker attempting to escape prompt context. Pattern: jailbreak template variant. Sanitized.",
+    "Encoding trick detected — base64-wrapped instruction in {field}. Decoded, matched injection library. Neutralized before reaching {provider}.",
+  ],
+  "dependency.mismatch.detected": [
+    "Dependency hash mismatch: {pkg} expected {expected}, got {actual}. Supply chain deviation. Alert dispatched. System continues under advisory.",
+    "Package {pkg} hash changed without a recorded install event. This is not a routine update. Merkle root updated with mismatch record.",
+  ],
 };
 
 function randomNarration(type: ThreatEvent["type"], ip: string, sessionId: string, depth = 0, threatClass?: ThreatClass): string {
@@ -171,7 +288,25 @@ function randomNarration(type: ThreatEvent["type"], ip: string, sessionId: strin
     .replace("{cv}", (Math.random() * 0.12).toFixed(3))
     .replace("{bytes}", (Math.floor(Math.random() * 9000 + 1000)).toLocaleString())
     .replace("{seed}", String(Math.floor(Math.random() * 7)))
-    .replace("{pct}", String(Math.floor(Math.random() * 70 + 20)));
+    .replace("{pct}", String(Math.floor(Math.random() * 70 + 20)))
+    .replace("{identity}", `user_${Math.floor(Math.random() * 9000 + 1000)}`)
+    .replace("{count}", String(Math.floor(Math.random() * 9000 + 500)))
+    .replace("{baseline}", String(Math.floor(Math.random() * 50 + 5)))
+    .replace("{score}", (Math.random() * 0.5 + 0.4).toFixed(2))
+    .replace("{window}", "1h")
+    .replace("{host}", `sub${Math.floor(Math.random() * 99)}.example.com`)
+    .replace("{target}", `target-${Math.floor(Math.random() * 999)}.herokuapp.com`)
+    .replace("{field}", ["http-header", "json-body", "query-param"][Math.floor(Math.random() * 3)]!)
+    .replace("{snippet}", "Ignore previous instructions and...")
+    .replace("{provider}", ["GPT-4o", "Claude", "Ollama"][Math.floor(Math.random() * 3)]!)
+    .replace("{pkg}", `@scope/package-${Math.floor(Math.random() * 999)}`)
+    .replace("{expected}", Math.random().toString(16).slice(2, 10))
+    .replace("{actual}", Math.random().toString(16).slice(2, 10))
+    .replace("{bytes}", `${Math.floor(Math.random() * 400 + 50)} MB`)
+    .replace("{threshold}", "100 MB")
+    .replace("{mult}", String(Math.floor(Math.random() * 8 + 2)))
+    .replace("{rate}", (Math.random() * 40 + 5).toFixed(1))
+    .replace("{hours}", String(Math.floor(Math.random() * 48 + 2)));
 }
 
 function randomIp(): string {
@@ -202,6 +337,17 @@ const EVENT_TYPES: ThreatEvent["type"][] = [
   "tarpit.connection.absorbed",
   "flood.detected",
   "upstream.escalated",
+  "dependency.mismatch.detected",
+  "secret.redacted",
+  "secret.redacted",
+  "authn.anomaly.detected",
+  "dns.record.unrecognized",
+  "dns.takeover.suspected",
+  "client.integrity.low",
+  "client.integrity.low",
+  "exfiltration.velocity.exceeded",
+  "ai.injection.attempt",
+  "ai.injection.attempt",
 ];
 
 const THREAT_CLASSES: ThreatClass[] = [
@@ -228,6 +374,13 @@ const LAYER_NAMES = [
   "Threat Intelligence",
   "Frame Narrative Proxy",
   "Traffic Absorption",
+  "Dependency Integrity",
+  "Secrets Sentinel",
+  "Authn Anomaly Engine",
+  "DNS Integrity Watch",
+  "Client Integrity",
+  "Exfiltration Monitor",
+  "AI Input Sanitization",
 ];
 
 const INITIAL_LAYERS: LayerState[] = LAYER_NAMES.map((name, i) => ({
@@ -305,6 +458,46 @@ export function useSimulatedData(): DashboardState {
     slimeEvents: [],
     proxyActive: true,
     layer14: INITIAL_LAYER14,
+    layer15: {
+      status: "clean",
+      packageCount: 847,
+      lastVerifiedAt: Date.now() - 30_000,
+      mismatchCount: 0,
+    },
+    layer16: {
+      totalRedacted: 0,
+      recentRedactions: [],
+    },
+    layer17: {
+      flaggedIdentities: [],
+      totalAnomalies: 0,
+    },
+    layer18: {
+      points: Array.from({ length: 12 }, (_, i) => ({
+        id: `dns-${i}`,
+        hostname: `sub${i}.example.com`,
+        status: i < 10 ? "verified" : i === 10 ? "unrecognized" : "flagged",
+        angleDeg: (i / 12) * 360,
+        distancePct: 70 + Math.random() * 20,
+      })) as DNSPoint[],
+      lastScanAt: Date.now() - 120_000,
+      flaggedCount: 1,
+    },
+    layer19: {
+      highCount: 800,
+      mediumCount: 120,
+      lowCount: 43,
+      routedToHoneypot: 43,
+    },
+    layer20: {
+      tideLevel: 12,
+      identities: [],
+      totalExceeded: 0,
+    },
+    layer21: {
+      totalAttempts: 0,
+      recentAttempts: [],
+    },
   });
 
   const addSlimeEvent = useCallback((type: SlimeEvent["type"], x?: number, y?: number) => {
@@ -404,6 +597,106 @@ export function useSimulatedData(): DashboardState {
           };
         }
 
+        // Layers 15–21 simulation
+        let layer15 = prev.layer15;
+        let layer16 = prev.layer16;
+        let layer17 = prev.layer17;
+        let layer18 = prev.layer18;
+        let layer19 = prev.layer19;
+        let layer20 = prev.layer20;
+        let layer21 = prev.layer21;
+
+        if (event.type === "dependency.mismatch.detected") {
+          layer15 = { ...layer15, status: "compromised", mismatchCount: layer15.mismatchCount + 1 };
+          newLayers = newLayers.map((l) => l.id === 15 ? { ...l, hitCount: l.hitCount + 1 } : l);
+        } else if (Math.random() < 0.02) {
+          layer15 = { ...layer15, status: "clean", lastVerifiedAt: Date.now() };
+        }
+
+        if (event.type === "secret.redacted") {
+          const patterns = ["aws-key", "jwt-token", "pem-private-key", "high-entropy-string", "bearer-token"];
+          const fields = ["response.body", "response.header", "log.emission", "json.field"];
+          layer16 = {
+            totalRedacted: layer16.totalRedacted + 1,
+            recentRedactions: [
+              { field: fields[Math.floor(Math.random() * fields.length)]!, patternType: patterns[Math.floor(Math.random() * patterns.length)]!, timestamp: Date.now() },
+              ...layer16.recentRedactions.slice(0, 4),
+            ],
+          };
+          newLayers = newLayers.map((l) => l.id === 16 ? { ...l, hitCount: l.hitCount + 1 } : l);
+        }
+
+        if (event.type === "authn.anomaly.detected") {
+          const anomalyClasses: AuthAnomalyClass[] = ["credential-compromise", "malicious-insider", "automated-scraping", "privilege-escalation", "lateral-movement", "bulk-exfiltration"];
+          const newIdentity: FlaggedIdentity = {
+            id: crypto.randomUUID(),
+            identityId: `user_${Math.floor(Math.random() * 9000 + 1000)}`,
+            anomalyClass: anomalyClasses[Math.floor(Math.random() * anomalyClasses.length)]!,
+            riskScore: Math.random() * 0.5 + 0.5,
+            detectedAt: Date.now(),
+            requestCount: Math.floor(Math.random() * 9000 + 500),
+          };
+          layer17 = {
+            flaggedIdentities: [newIdentity, ...layer17.flaggedIdentities.slice(0, 3)],
+            totalAnomalies: layer17.totalAnomalies + 1,
+          };
+          newLayers = newLayers.map((l) => l.id === 17 ? { ...l, hitCount: l.hitCount + 1 } : l);
+        }
+
+        if (event.type === "dns.record.unrecognized" || event.type === "dns.takeover.suspected") {
+          const status: DNSPointStatus = event.type === "dns.takeover.suspected" ? "flagged" : "unrecognized";
+          const newPoint: DNSPoint = {
+            id: crypto.randomUUID(),
+            hostname: `sub${Math.floor(Math.random() * 99)}.example.com`,
+            status,
+            angleDeg: Math.random() * 360,
+            distancePct: 65 + Math.random() * 25,
+          };
+          layer18 = {
+            ...layer18,
+            points: [...layer18.points.slice(-15), newPoint],
+            flaggedCount: layer18.flaggedCount + (status === "flagged" ? 1 : 0),
+            lastScanAt: Date.now(),
+          };
+          newLayers = newLayers.map((l) => l.id === 18 ? { ...l, hitCount: l.hitCount + 1 } : l);
+        }
+
+        if (event.type === "client.integrity.low") {
+          layer19 = { ...layer19, lowCount: layer19.lowCount + 1, routedToHoneypot: layer19.routedToHoneypot + 1 };
+          newLayers = newLayers.map((l) => l.id === 19 ? { ...l, hitCount: l.hitCount + 1 } : l);
+        } else if (Math.random() < 0.3) {
+          layer19 = { ...layer19, highCount: layer19.highCount + Math.floor(Math.random() * 3 + 1) };
+        }
+
+        if (event.type === "exfiltration.velocity.exceeded") {
+          const newExfilIdentity = {
+            id: crypto.randomUUID(),
+            identityId: `user_${Math.floor(Math.random() * 9000 + 1000)}`,
+            bytesLast24h: Math.floor(Math.random() * 400_000_000 + 50_000_000),
+            thresholdBytes: 100_000_000,
+          };
+          layer20 = {
+            tideLevel: Math.min(100, layer20.tideLevel + Math.random() * 8 + 2),
+            identities: [newExfilIdentity, ...layer20.identities.slice(0, 3)],
+            totalExceeded: layer20.totalExceeded + 1,
+          };
+          newLayers = newLayers.map((l) => l.id === 20 ? { ...l, hitCount: l.hitCount + 1 } : l);
+        } else {
+          layer20 = { ...layer20, tideLevel: Math.max(0, layer20.tideLevel - 0.3) };
+        }
+
+        if (event.type === "ai.injection.attempt") {
+          const injectionPatterns = ["role-override", "system-prompt-override", "delimiter-manipulation", "base64-encoding-trick", "jailbreak-template"];
+          layer21 = {
+            totalAttempts: layer21.totalAttempts + 1,
+            recentAttempts: [
+              { id: crypto.randomUUID(), timestamp: Date.now(), pattern: injectionPatterns[Math.floor(Math.random() * injectionPatterns.length)]!, sanitized: true },
+              ...layer21.recentAttempts.slice(0, 4),
+            ],
+          };
+          newLayers = newLayers.map((l) => l.id === 21 ? { ...l, hitCount: l.hitCount + 1 } : l);
+        }
+
         return {
           ...prev,
           events: [event, ...prev.events.slice(0, 49)],
@@ -413,6 +706,13 @@ export function useSimulatedData(): DashboardState {
           mod7: newMod7,
           shadowSessions,
           layer14,
+          layer15,
+          layer16,
+          layer17,
+          layer18,
+          layer19,
+          layer20,
+          layer21,
         };
       });
 
@@ -424,6 +724,12 @@ export function useSimulatedData(): DashboardState {
       if (event.type === "provider.failover") addSlimeEvent("ring");
       if (event.type === "flood.detected" || event.type === "tarpit.connection.absorbed") addSlimeEvent("darken");
       if (event.type === "upstream.escalated") addSlimeEvent("ring");
+      if (event.type === "dependency.mismatch.detected") addSlimeEvent("flare");
+      if (event.type === "secret.redacted") addSlimeEvent("ripple");
+      if (event.type === "authn.anomaly.detected") addSlimeEvent("darken");
+      if (event.type === "dns.takeover.suspected") addSlimeEvent("flare");
+      if (event.type === "ai.injection.attempt") addSlimeEvent("ring");
+      if (event.type === "exfiltration.velocity.exceeded") addSlimeEvent("darken");
     };
 
     // Staggered intervals to feel organic, not mechanical

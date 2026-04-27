@@ -566,6 +566,258 @@ export interface Layer14Config {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
+// Layer 15 — Dependency Integrity Monitor
+// ─────────────────────────────────────────────────────────────────────────────
+
+export interface Layer15Config {
+  readonly enabled: boolean;
+  /**
+   * If true, startup is halted when a dependency hash mismatch is detected.
+   * If false, the system alerts and continues. @default false
+   */
+  readonly haltOnMismatch?: boolean;
+  /**
+   * Filesystem path where the known-good manifest is persisted.
+   * Defaults to .flat-circle/dependency-manifest.json in the project root.
+   */
+  readonly manifestPath?: string;
+  /**
+   * Hashing algorithm for dependency fingerprints. @default "sha256"
+   */
+  readonly algorithm?: "sha256" | "sha512";
+  /**
+   * Paths to lockfiles to monitor. Defaults to auto-detection of
+   * package-lock.json, pnpm-lock.yaml, yarn.lock in the project root.
+   */
+  readonly lockfilePaths?: string[];
+  /**
+   * Re-verify on every boot. @default true
+   */
+  readonly verifyOnBoot?: boolean;
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Layer 16 — Secrets Sentinel
+// ─────────────────────────────────────────────────────────────────────────────
+
+export interface Layer16Config {
+  readonly enabled: boolean;
+  /**
+   * Shannon entropy threshold (bits per character) above which a string
+   * fragment is considered a high-entropy secret candidate. @default 4.5
+   */
+  readonly entropyThreshold?: number;
+  /**
+   * Scan outbound response headers for secrets. @default true
+   */
+  readonly scanHeaders?: boolean;
+  /**
+   * Scan outbound response bodies for secrets. @default true
+   */
+  readonly scanBody?: boolean;
+  /**
+   * Scan log emissions for secrets before they reach the log transport. @default true
+   */
+  readonly scanLogs?: boolean;
+  /**
+   * Additional regex patterns to match beyond the built-in library.
+   * Each pattern is matched against response content; groups are redacted.
+   */
+  readonly extraPatterns?: string[];
+  /**
+   * Use AI provider cascade for context-aware redaction decisions.
+   * When false, falls back to deterministic regex + entropy scoring. @default true
+   */
+  readonly aiContextualAnalysis?: boolean;
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Layer 17 — Authenticated Anomaly Engine
+// ─────────────────────────────────────────────────────────────────────────────
+
+export type AuthAnomalyClass =
+  | "credential-compromise"
+  | "malicious-insider"
+  | "automated-scraping"
+  | "privilege-escalation"
+  | "lateral-movement"
+  | "bulk-exfiltration"
+  | "session-hijack"
+  | "unknown";
+
+export interface Layer17Config {
+  readonly enabled: boolean;
+  /**
+   * Header containing the authenticated identity for per-user contract building.
+   * @default "x-user-id"
+   */
+  readonly identityHeader?: string;
+  /**
+   * Requests to observe per identity before the baseline is considered trained.
+   * @default 500
+   */
+  readonly learningWindowRequests?: number;
+  /**
+   * Cosine distance threshold above which an authenticated request is flagged.
+   * @default 0.35
+   */
+  readonly anomalyThreshold?: number;
+  /**
+   * Records accessed per hour above which bulk access is flagged.
+   * @default 1000
+   */
+  readonly bulkAccessThreshold?: number;
+  /**
+   * Automatically clone flagged authenticated sessions into Layer 9 shadow layer.
+   * @default true
+   */
+  readonly layer9Integration?: boolean;
+  /**
+   * Use AI to classify the anomaly type (insider threat, scraping, etc.).
+   * @default true
+   */
+  readonly aiClassification?: boolean;
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Layer 18 — DNS Integrity Watch
+// ─────────────────────────────────────────────────────────────────────────────
+
+export interface Layer18Config {
+  readonly enabled: boolean;
+  /**
+   * Root domains to monitor. All discovered subdomains and DNS records
+   * under these roots are included in the integrity surface.
+   */
+  readonly domains?: string[];
+  /**
+   * How often to re-verify the full DNS surface (seconds). @default 3600
+   */
+  readonly pollingIntervalSeconds?: number;
+  /**
+   * Alert on DNS resolutions not matching the recognized infrastructure set.
+   * @default true
+   */
+  readonly alertOnUnrecognized?: boolean;
+  /**
+   * Patterns considered known-good infrastructure (e.g. "*.vercel.app").
+   * Resolutions matching these are auto-approved on first sight.
+   */
+  readonly knownInfrastructurePatterns?: string[];
+  /**
+   * Webhook URL for immediate takeover alerts.
+   */
+  readonly webhookUrl?: string;
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Layer 19 — Client Integrity Verification
+// ─────────────────────────────────────────────────────────────────────────────
+
+export interface Layer19Config {
+  readonly enabled: boolean;
+  /**
+   * Enable JA3 TLS fingerprint analysis. @default true
+   */
+  readonly ja3Enabled?: boolean;
+  /**
+   * Enable HTTP/2 protocol fingerprint analysis. @default true
+   */
+  readonly http2FingerprintEnabled?: boolean;
+  /**
+   * Client integrity score below which the client is classified low-integrity.
+   * Range [0, 1]. @default 0.4
+   */
+  readonly lowIntegrityThreshold?: number;
+  /**
+   * Route low-integrity clients to the Layer 2 honeypot mesh. @default true
+   */
+  readonly layer2Integration?: boolean;
+  /**
+   * Hard-block clients scoring below this value. No default — omitting means
+   * low-integrity clients are always routed rather than blocked.
+   */
+  readonly blockBelowScore?: number;
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Layer 20 — Exfiltration Velocity Monitor
+// ─────────────────────────────────────────────────────────────────────────────
+
+export interface ExfiltrationThresholds {
+  /** Bytes per hour threshold per identity. */
+  readonly hourlyBytes?: number;
+  /** Bytes per 24 hours threshold per identity. */
+  readonly dailyBytes?: number;
+  /** Bytes per 7 days threshold per identity. */
+  readonly weeklyBytes?: number;
+  /** Bytes per 30 days threshold per identity. */
+  readonly monthlyBytes?: number;
+}
+
+export interface Layer20Config {
+  readonly enabled: boolean;
+  /**
+   * Header containing the authenticated identity for per-user velocity tracking.
+   * @default "x-user-id"
+   */
+  readonly identityHeader?: string;
+  /**
+   * Transfer thresholds per rolling window. Crossing any threshold triggers
+   * escalation. Defaults: hourly 100 MB, daily 500 MB.
+   */
+  readonly thresholds?: ExfiltrationThresholds;
+  /**
+   * Half-life for the rolling decay function (hours). Values older than
+   * this contribute exponentially less to the velocity score. @default 24
+   */
+  readonly decayHalfLifeHours?: number;
+  /**
+   * Clone flagged identities into Layer 9 shadow sessions. @default true
+   */
+  readonly layer9Integration?: boolean;
+  /**
+   * Use AI to distinguish legitimate large exports from exfiltration patterns.
+   * @default true
+   */
+  readonly aiClassification?: boolean;
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Layer 21 — AI Input Sanitization
+// ─────────────────────────────────────────────────────────────────────────────
+
+export interface Layer21Config {
+  readonly enabled: boolean;
+  /**
+   * Sanitize attacker-controlled strings before they reach any AI provider
+   * generate() call. @default true
+   */
+  readonly sanitizePrompts?: boolean;
+  /**
+   * Sanitize metadata fields (headers, query params) used in AI context
+   * construction. @default true
+   */
+  readonly sanitizeMetadata?: boolean;
+  /**
+   * Additional injection signature patterns beyond the built-in library.
+   * Each is a regex string matched against pre-AI inputs.
+   */
+  readonly additionalInjectionPatterns?: string[];
+  /**
+   * Log sanitization events as Merkle leaf pairs (original + sanitized).
+   * @default true
+   */
+  readonly logAttempts?: boolean;
+  /**
+   * When true, a detected injection attempt causes the AI call to be
+   * cancelled and the static fallback used instead. When false, the
+   * sanitized input is passed through. @default false
+   */
+  readonly blockOnDetection?: boolean;
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 // Storage adapters
 // ─────────────────────────────────────────────────────────────────────────────
 
@@ -646,6 +898,13 @@ export interface LayerConfig {
   readonly layer12?: Layer12Config;
   readonly layer13?: Layer13Config;
   readonly layer14?: Layer14Config;
+  readonly layer15?: Layer15Config;
+  readonly layer16?: Layer16Config;
+  readonly layer17?: Layer17Config;
+  readonly layer18?: Layer18Config;
+  readonly layer19?: Layer19Config;
+  readonly layer20?: Layer20Config;
+  readonly layer21?: Layer21Config;
 }
 
 export interface FlatCircleConfig {
@@ -710,7 +969,16 @@ export type EventType =
   | "tarpit.connection.absorbed"
   | "flood.detected"
   | "upstream.escalated"
-  | "upstream.deescalated";
+  | "upstream.deescalated"
+  | "dependency.integrity.verified"
+  | "dependency.mismatch.detected"
+  | "secret.redacted"
+  | "authn.anomaly.detected"
+  | "dns.record.unrecognized"
+  | "dns.takeover.suspected"
+  | "client.integrity.low"
+  | "exfiltration.velocity.exceeded"
+  | "ai.injection.attempt";
 
 export interface FlatCircleEvent {
   readonly id: string;

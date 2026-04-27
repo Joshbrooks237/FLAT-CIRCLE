@@ -1,7 +1,7 @@
 /**
  * @flat-circle/core — Public API
  *
- * Fourteen layers. Four AI tiers. One philosophy.
+ * Twenty-one layers. Four AI tiers. One philosophy.
  */
 
 // Types
@@ -28,6 +28,15 @@ export type {
   Layer12Config,
   Layer13Config,
   Layer14Config,
+  Layer15Config,
+  Layer16Config,
+  Layer17Config,
+  AuthAnomalyClass,
+  Layer18Config,
+  Layer19Config,
+  Layer20Config,
+  ExfiltrationThresholds,
+  Layer21Config,
   UpstreamAbsorberConfig,
   UpstreamAbsorberProvider,
   FlatCircleRequest,
@@ -91,6 +100,64 @@ export type {
   AbsorptionStatus,
   UpstreamAbsorberStatus,
 } from "./layers/layer14-tarpit.js";
+
+// Layer 15
+export { DependencyIntegrityMonitor } from "./layers/layer15-dependency.js";
+export type {
+  DependencyIntegrityStatus,
+  DependencyEntry,
+  DependencyManifest,
+  DependencyMismatch,
+  IntegrityVerificationResult,
+} from "./layers/layer15-dependency.js";
+
+// Layer 16
+export { SecretsSentinel, shannonEntropy } from "./layers/layer16-secrets.js";
+export type {
+  RedactionPatternType,
+  RedactionMatch,
+  RedactionResult,
+  SentinelScanResult,
+} from "./layers/layer16-secrets.js";
+
+// Layer 17
+export { AuthenticatedAnomalyEngine } from "./layers/layer17-authn-anomaly.js";
+export type {
+  IdentityProfile,
+  AuthnAnomalyEvent,
+} from "./layers/layer17-authn-anomaly.js";
+
+// Layer 18
+export { DNSIntegrityWatcher } from "./layers/layer18-dns.js";
+export type {
+  DNSRecordStatus,
+  MonitoredDNSRecord,
+  DNSScanResult,
+} from "./layers/layer18-dns.js";
+
+// Layer 19
+export { ClientIntegrityScorer } from "./layers/layer19-client-integrity.js";
+export type {
+  TLSFingerprint,
+  HTTP2Fingerprint,
+  ClientIntegrityInput,
+  ClientIntegrityScore,
+} from "./layers/layer19-client-integrity.js";
+
+// Layer 20
+export { ExfiltrationVelocityMonitor } from "./layers/layer20-exfiltration.js";
+export type {
+  TransferSample,
+  IdentityVelocityProfile,
+  VelocityCheckResult,
+} from "./layers/layer20-exfiltration.js";
+
+// Layer 21
+export { AIInputSanitizer, SanitizedProviderCascade } from "./layers/layer21-ai-sanitization.js";
+export type {
+  InjectionPatternType,
+  SanitizationResult,
+} from "./layers/layer21-ai-sanitization.js";
 
 // Layer 11
 export {

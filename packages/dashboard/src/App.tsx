@@ -1,7 +1,7 @@
 import { useRef } from "react";
 import SlimeOrganism from "./components/SlimeOrganism";
 import { useSimulatedData } from "./hooks/useSimulatedData";
-import type { ThreatEvent, AITier, ThreatClass, TarpitNodeState, UpstreamStatus } from "./hooks/useSimulatedData";
+import type { ThreatEvent, AITier, ThreatClass, TarpitNodeState, UpstreamStatus, DNSPoint } from "./hooks/useSimulatedData";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Color helpers
@@ -21,6 +21,14 @@ function eventColor(type: ThreatEvent["type"]): string {
     case "tarpit.connection.absorbed": return "#ffaa33";
     case "flood.detected":            return "#ff8800";
     case "upstream.escalated":        return "#ff6600";
+    case "dependency.mismatch.detected": return "#ff3300";
+    case "secret.redacted":              return "#cc44ff";
+    case "authn.anomaly.detected":       return "#ff6600";
+    case "dns.record.unrecognized":      return "#ffdd00";
+    case "dns.takeover.suspected":       return "#ff2200";
+    case "client.integrity.low":         return "#ffaa33";
+    case "exfiltration.velocity.exceeded": return "#ff4488";
+    case "ai.injection.attempt":         return "#aa44ff";
     default:                          return "#00f07a";
   }
 }
@@ -284,6 +292,131 @@ function UpstreamStatusBadge({ status, provider }: { status: UpstreamStatus; pro
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
+// Layer 15 — Dependency integrity root indicator
+// ─────────────────────────────────────────────────────────────────────────────
+
+function DependencyRootIndicator({ status, packageCount, lastVerifiedAt }: {
+  status: "clean" | "unverified" | "compromised";
+  packageCount: number;
+  lastVerifiedAt: number;
+}) {
+  const color = status === "clean" ? "#00f07a" : status === "unverified" ? "#ffaa33" : "#ff2200";
+  const label = status === "clean" ? "CLEAN" : status === "unverified" ? "UNVERIFIED" : "COMPROMISED";
+  return (
+    <div className="flex items-center gap-2">
+      <div className="rounded-full flex-shrink-0" style={{ width: "6px", height: "6px", background: color, boxShadow: `0 0 6px ${color}66`, animation: status !== "clean" ? "pulse 1.5s infinite" : "none" }} />
+      <span style={{ color, fontSize: "9px", fontFamily: "JetBrains Mono" }}>{label}</span>
+      <span style={{ color: "rgba(0,240,122,0.3)", fontSize: "8px", fontFamily: "JetBrains Mono" }}>{packageCount} pkgs</span>
+      <span style={{ color: "rgba(0,240,122,0.2)", fontSize: "8px", fontFamily: "JetBrains Mono" }}>{formatAge(Date.now() - lastVerifiedAt)}</span>
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Layer 18 — DNS constellation
+// ─────────────────────────────────────────────────────────────────────────────
+
+function DNSConstellation({ points }: { points: DNSPoint[] }) {
+  const cx = 50;
+  const cy = 50;
+  return (
+    <svg viewBox="0 0 100 100" style={{ width: "100%", height: "100%", position: "absolute", inset: 0, pointerEvents: "none" }}>
+      {points.map((p) => {
+        const rad = (p.angleDeg * Math.PI) / 180;
+        const r = p.distancePct * 0.45;
+        const x = cx + r * Math.cos(rad);
+        const y = cy + r * Math.sin(rad);
+        const color = p.status === "verified" ? "#00f07a" : p.status === "unrecognized" ? "#ffaa33" : "#ff2200";
+        return (
+          <g key={p.id}>
+            <line x1={cx} y1={cy} x2={x} y2={y} stroke={color} strokeWidth="0.2" strokeOpacity="0.15" />
+            <circle cx={x} cy={y} r={p.status === "flagged" ? 1.5 : 1} fill={color} opacity={p.status === "verified" ? 0.4 : 0.9}>
+              {p.status !== "verified" && (
+                <animate attributeName="opacity" values="0.9;0.3;0.9" dur={p.status === "flagged" ? "0.8s" : "2s"} repeatCount="indefinite" />
+              )}
+            </circle>
+          </g>
+        );
+      })}
+    </svg>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Layer 19 — Client integrity heat legend
+// ─────────────────────────────────────────────────────────────────────────────
+
+function ClientIntegrityLegend({ highCount, mediumCount, lowCount, routedToHoneypot }: {
+  highCount: number; mediumCount: number; lowCount: number; routedToHoneypot: number;
+}) {
+  const total = highCount + mediumCount + lowCount || 1;
+  return (
+    <div className="flex flex-col gap-1">
+      {[
+        { label: "HIGH", count: highCount, color: "rgba(0,240,122,0.0)", textColor: "rgba(0,240,122,0.3)" },
+        { label: "MEDIUM", count: mediumCount, color: "rgba(255,170,50,0.15)", textColor: "rgba(255,170,50,0.6)" },
+        { label: "LOW →HONEYPOT", count: lowCount, color: "rgba(255,100,0,0.2)", textColor: "rgba(255,100,0,0.8)" },
+      ].map(({ label, count, color, textColor }) => (
+        <div key={label} className="flex items-center gap-2">
+          <div style={{ width: `${(count / total) * 80}px`, height: "3px", background: textColor, borderRadius: "2px", minWidth: "4px" }} />
+          <span style={{ color: textColor, fontSize: "8px", fontFamily: "JetBrains Mono" }}>{label}</span>
+          <span style={{ color: "rgba(255,255,255,0.2)", fontSize: "8px", fontFamily: "JetBrains Mono" }}>{count.toLocaleString()}</span>
+          <span style={{ color }}>{""}</span>
+        </div>
+      ))}
+      <span style={{ color: "rgba(255,170,50,0.3)", fontSize: "7px", fontFamily: "JetBrains Mono" }}>{routedToHoneypot.toLocaleString()} routed to honeypot</span>
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Layer 20 — Exfiltration tide gauge
+// ─────────────────────────────────────────────────────────────────────────────
+
+function ExfiltrationTideGauge({ tideLevel, totalExceeded }: { tideLevel: number; totalExceeded: number }) {
+  const color = tideLevel > 70 ? "#ff2200" : tideLevel > 40 ? "#ff6600" : tideLevel > 15 ? "#ffaa33" : "rgba(255,170,50,0.3)";
+  return (
+    <div className="flex flex-col gap-1">
+      <div className="flex items-center justify-between">
+        <span style={{ color: "rgba(255,170,50,0.4)", fontSize: "8px", letterSpacing: "0.1em", fontFamily: "JetBrains Mono" }}>EXFIL VELOCITY</span>
+        <span style={{ color, fontSize: "9px", fontFamily: "JetBrains Mono" }}>{tideLevel.toFixed(1)}%</span>
+      </div>
+      <div style={{ height: "24px", background: "rgba(255,170,50,0.05)", borderRadius: "2px", position: "relative", overflow: "hidden", border: "1px solid rgba(255,170,50,0.08)" }}>
+        <div style={{
+          position: "absolute", bottom: 0, left: 0, right: 0,
+          height: `${tideLevel}%`,
+          background: `linear-gradient(to top, ${color}33, ${color}11)`,
+          transition: "height 3s ease",
+          borderTop: `1px solid ${color}66`,
+        }} />
+        <div style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center" }}>
+          <span style={{ color, fontSize: "7px", fontFamily: "JetBrains Mono", letterSpacing: "0.1em" }}>
+            {totalExceeded > 0 ? `${totalExceeded} THRESHOLD CROSSED` : "NOMINAL"}
+          </span>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Layer 21 — AI injection attempt feed item
+// ─────────────────────────────────────────────────────────────────────────────
+
+function InjectionAttemptBadge({ pattern, timestamp }: { pattern: string; timestamp: number }) {
+  return (
+    <div className="flex items-center justify-between" style={{ borderLeft: "2px solid rgba(170,68,255,0.6)", paddingLeft: "6px" }}>
+      <span style={{ color: "rgba(170,68,255,0.9)", fontSize: "8px", fontFamily: "JetBrains Mono", flex: 1 }}>
+        {pattern.toUpperCase()}
+      </span>
+      <span style={{ color: "rgba(170,68,255,0.3)", fontSize: "7px", fontFamily: "JetBrains Mono" }}>
+        {formatAge(Date.now() - timestamp)} · SANITIZED
+      </span>
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 // Main App
 // ─────────────────────────────────────────────────────────────────────────────
 
@@ -295,6 +428,7 @@ export default function App() {
     (e) => e.threatClass === "nation-state"
   );
   const { layer14 } = data;
+  const { layer15, layer16, layer17, layer18, layer19, layer20, layer21 } = data;
 
   const merkleShort = data.merkle.root.slice(0, 8) + "..." + data.merkle.root.slice(-8);
 
@@ -370,12 +504,18 @@ export default function App() {
             { label: "SHADOWED", value: data.stats.shadowedSessions },
             { label: "CANARIES", value: data.stats.canariesFired },
             { label: "MERKLE LEAVES", value: data.stats.merkleLeaves.toLocaleString() },
+            { label: "SECRETS REDACTED", value: layer16.totalRedacted },
           ].map(({ label, value }) => (
             <div key={label} className="flex flex-col items-end">
               <span style={{ color: "#00f07a", fontSize: "13px", fontWeight: 500 }}>{value}</span>
               <span style={{ color: "rgba(0,240,122,0.3)", fontSize: "8px", letterSpacing: "0.1em" }}>{label}</span>
             </div>
           ))}
+          <DependencyRootIndicator
+            status={layer15.status}
+            packageCount={layer15.packageCount}
+            lastVerifiedAt={layer15.lastVerifiedAt}
+          />
         </div>
       </div>
 
@@ -439,6 +579,11 @@ export default function App() {
               }}
             />
           )}
+          {/* Layer 18 — DNS constellation overlay */}
+          <div className="absolute inset-0 pointer-events-none" style={{ opacity: 0.7 }}>
+            <DNSConstellation points={layer18.points} />
+          </div>
+
           {layer14.floodActive && (
             <div
               className="absolute bottom-8 left-1/2 -translate-x-1/2 flex items-center gap-2"
@@ -560,6 +705,46 @@ export default function App() {
             </div>
           )}
 
+          {/* Layer 17 — Authn anomaly panel */}
+          {layer17.flaggedIdentities.length > 0 && (
+            <div style={{ borderBottom: "1px solid rgba(255,100,0,0.08)", flexShrink: 0 }}>
+              <div className="px-4 py-2" style={{ borderBottom: "1px solid rgba(255,100,0,0.06)" }}>
+                <span style={{ color: "rgba(255,100,0,0.7)", fontSize: "9px", letterSpacing: "0.15em" }}>
+                  AUTHN ANOMALIES — {layer17.totalAnomalies}
+                </span>
+              </div>
+              <div className="px-4 py-2 flex flex-col gap-1">
+                {layer17.flaggedIdentities.slice(0, 3).map((f) => (
+                  <div key={f.id} className="flex items-center justify-between">
+                    <span style={{ color: "rgba(255,255,255,0.4)", fontSize: "9px", fontFamily: "JetBrains Mono" }}>{f.identityId}</span>
+                    <span style={{ color: "#ff6600", fontSize: "8px", fontFamily: "JetBrains Mono", letterSpacing: "0.05em" }}>
+                      {f.anomalyClass.toUpperCase().slice(0, 14)}
+                    </span>
+                    <span style={{ color: "rgba(255,100,0,0.5)", fontSize: "8px", fontFamily: "JetBrains Mono" }}>
+                      {(f.riskScore * 10).toFixed(1)}/10
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Layer 21 — AI injection attempts panel */}
+          {layer21.recentAttempts.length > 0 && (
+            <div style={{ borderBottom: "1px solid rgba(170,68,255,0.08)", flexShrink: 0 }}>
+              <div className="px-4 py-2" style={{ borderBottom: "1px solid rgba(170,68,255,0.06)" }}>
+                <span style={{ color: "rgba(170,68,255,0.7)", fontSize: "9px", letterSpacing: "0.15em" }}>
+                  AI INJECTION — {layer21.totalAttempts}
+                </span>
+              </div>
+              <div className="px-4 py-2 flex flex-col gap-2">
+                {layer21.recentAttempts.slice(0, 3).map((a) => (
+                  <InjectionAttemptBadge key={a.id} pattern={a.pattern} timestamp={a.timestamp} />
+                ))}
+              </div>
+            </div>
+          )}
+
           {/* Layer 14 — Tarpit panel */}
           <div style={{ borderBottom: "1px solid rgba(255,136,0,0.08)", flexShrink: 0 }}>
             <div
@@ -675,7 +860,7 @@ export default function App() {
         {/* Layer status */}
         <div className="flex-1 px-4 py-2 overflow-hidden">
           <span style={{ color: "rgba(0,240,122,0.35)", fontSize: "8px", letterSpacing: "0.15em" }}>
-            FOURTEEN LAYERS
+            TWENTY-ONE LAYERS
           </span>
           <div className="grid grid-cols-3 gap-x-3 gap-y-1 mt-2">
             {data.layers.map((l) => (
@@ -687,6 +872,17 @@ export default function App() {
               />
             ))}
           </div>
+        </div>
+
+        {/* Layers 19+20 gauges */}
+        <div className="flex flex-col justify-center px-4 gap-2" style={{ borderLeft: "1px solid rgba(0,240,122,0.06)", minWidth: "180px" }}>
+          <ClientIntegrityLegend
+            highCount={layer19.highCount}
+            mediumCount={layer19.mediumCount}
+            lowCount={layer19.lowCount}
+            routedToHoneypot={layer19.routedToHoneypot}
+          />
+          <ExfiltrationTideGauge tideLevel={layer20.tideLevel} totalExceeded={layer20.totalExceeded} />
         </div>
 
         {/* Provider + token meter */}
