@@ -1,0 +1,16 @@
+{
+  "name": "@flat-circle/demo-app",
+  "version": "0.1.0",
+  "description": "Demo SaaS application — the thing Flat Circle protects.",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "node --watch src/index.js",
+    "start": "node src/index.js",
+    "build": "echo 'No build step — pure ESM'"
+  },
+  "dependencies": {
+    "@hono/node-server": "^1.12.0",
+    "hono": "^4.4.0"
+  }
+}

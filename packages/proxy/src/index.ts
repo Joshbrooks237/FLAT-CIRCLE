@@ -199,6 +199,62 @@ export class FlatCircleProxy {
   private mountMiddleware(): void {
     const { layer13 } = this;
 
+    // ── SSE event stream — for dashboard real-time data ──────────────────────
+    // GET /flat-circle/stream → text/event-stream
+    // Optional: protect with ?token= or Authorization header.
+    this.app.get("/flat-circle/stream", (c: HonoCtx) => {
+      const dashboardConfig = this.config.dashboard;
+      const expectedToken = dashboardConfig?.accessToken;
+      if (expectedToken) {
+        const provided =
+          c.req.query("token") ??
+          c.req.header("authorization")?.replace("Bearer ", "");
+        if (provided !== expectedToken) {
+          return new Response("Unauthorized", { status: 401 });
+        }
+      }
+
+      let unsub: (() => void) | null = null;
+      const stream = new ReadableStream({
+        start: (controller) => {
+          const encoder = new TextEncoder();
+          const heartbeat = setInterval(() => {
+            try {
+              controller.enqueue(encoder.encode(": heartbeat\n\n"));
+            } catch {
+              clearInterval(heartbeat);
+            }
+          }, 15_000);
+
+          unsub = this.eventBus.subscribe((event) => {
+            try {
+              controller.enqueue(encoder.encode(`data: ${JSON.stringify(event)}\n\n`));
+            } catch {
+              // Client disconnected
+            }
+          });
+
+          // Signal initial connection
+          controller.enqueue(
+            encoder.encode(`data: ${JSON.stringify({ type: "connected", timestamp: Date.now() })}\n\n`)
+          );
+        },
+        cancel: () => {
+          unsub?.();
+        },
+      });
+
+      return new Response(stream, {
+        headers: {
+          "Content-Type": "text/event-stream",
+          "Cache-Control": "no-cache",
+          "Connection": "keep-alive",
+          "Access-Control-Allow-Origin": "*",
+          "X-Accel-Buffering": "no",
+        },
+      });
+    });
+
     this.app.use("*", async (c: HonoCtx, next: Next) => {
       const sessionId = extractSessionId(c);
       const ip = extractIp(c, layer13.trustedProxies);

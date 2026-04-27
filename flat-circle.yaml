@@ -1,0 +1,95 @@
+# flat-circle.yaml
+#
+# Point the proxy at the demo app and watch the organism.
+#
+# Usage:
+#   terminal 1: cd packages/demo-app && node src/index.js        # target app → :3000
+#   terminal 2: cd packages/proxy && node dist/cli.js            # proxy → :8080
+#   terminal 3: cd packages/dashboard && pnpm dev               # dashboard → :3001
+#
+# Then hit http://localhost:8080 in a browser or with curl.
+# The dashboard at http://localhost:3001 shows real events from the proxy.
+
+environment: development
+logLevel: info
+
+ai:
+  # Tier 4 always active — no API keys needed for local dev
+  # Uncomment to add real AI providers:
+  # openai:
+  #   apiKey: ${OPENAI_API_KEY}
+  #   model: gpt-4o
+  # anthropic:
+  #   apiKey: ${ANTHROPIC_API_KEY}
+  #   model: claude-sonnet-4-5
+  # ollama:
+  #   baseURL: http://localhost:11434
+  #   model: llama3
+
+layers:
+  layer1:
+    enabled: true
+
+  layer2:
+    enabled: true
+    decoyRatio: 3
+    activeSlots: 4
+    escalateToRecursive: true
+
+  layer3:
+    enabled: true
+    # slackWebhook: ${SLACK_WEBHOOK_URL}
+
+  layer4:
+    enabled: true
+    learningWindowRequests: 100
+    anomalyThreshold: 0.35
+    anomalyAction: reroute
+
+  layer5:
+    enabled: true
+    minDelayMicros: 200
+    maxDelayMicros: 3000
+
+  layer6:
+    enabled: true
+    persona: random
+
+  layer7:
+    enabled: true
+    ghostHeadersBase: 2
+
+  layer8:
+    enabled: true
+    maxDepth: 8
+    sophisticationMultiplier: 1.2
+    goalInference: false
+
+  layer9:
+    enabled: true
+    shadowThreshold: 0.5
+    aiClassification: false
+
+  layer10:
+    enabled: true
+    morphIntensity: light
+
+  layer11:
+    enabled: true
+    algorithm: sha256
+    batchSize: 16
+
+  layer12:
+    enabled: false   # Requires API key
+
+  layer13:
+    enabled: true
+    originUrl: http://localhost:3000   # The demo app
+    listenPort: 8080
+    deployTarget: node
+    originTimeoutMs: 10000
+
+dashboard:
+  enabled: true
+  port: 3001
+  # accessToken: change-me   # Uncomment to protect the SSE stream

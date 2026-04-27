@@ -1,6 +1,7 @@
 import { useRef } from "react";
 import SlimeOrganism from "./components/SlimeOrganism";
 import { useSimulatedData } from "./hooks/useSimulatedData";
+import { useRealEvents } from "./hooks/useRealEvents";
 import { useState } from "react";
 import type { ThreatEvent, AITier, ThreatClass, TarpitNodeState, UpstreamStatus, DNSPoint, Layer22State, ForensicStreamStatus } from "./hooks/useSimulatedData";
 
@@ -684,7 +685,20 @@ function ChainOfCustodyVerifierWidget({ merkleRoot }: { merkleRoot: string }) {
 // ─────────────────────────────────────────────────────────────────────────────
 
 export default function App() {
-  const data = useSimulatedData();
+  const simData = useSimulatedData();
+  const { events: realEvents, connected: proxyConnected } = useRealEvents();
+
+  // When the proxy is live, overlay real events on top of the simulated state.
+  // The slime organism, layer stats, and all other panels still run on simulation
+  // (they require a full state machine). The event feed and threat panel show
+  // real events when the proxy is connected.
+  const data = {
+    ...simData,
+    events: proxyConnected && realEvents.length > 0
+      ? [...realEvents, ...simData.events].slice(0, 50)
+      : simData.events,
+  };
+
   const feedRef = useRef<HTMLDivElement>(null);
 
   const nationStateThreat = data.events.slice(0, 5).some(
@@ -751,6 +765,20 @@ export default function App() {
               <span style={{ color: "rgba(0,240,122,0.35)", fontSize: "9px" }}>FRAME NARRATIVE PROXY</span>
             </div>
           )}
+          <div className="flex items-center gap-1">
+            <div
+              className="rounded-full"
+              style={{
+                width: "4px", height: "4px",
+                background: proxyConnected ? "#00ccff" : "rgba(255,255,255,0.1)",
+                boxShadow: proxyConnected ? "0 0 4px #00ccff" : "none",
+                animation: proxyConnected ? "pulse 2s infinite" : "none",
+              }}
+            />
+            <span style={{ color: proxyConnected ? "rgba(0,204,255,0.6)" : "rgba(255,255,255,0.15)", fontSize: "9px" }}>
+              {proxyConnected ? "LIVE" : "SIMULATED"}
+            </span>
+          </div>
         </div>
 
         <div className="flex items-center gap-6">
