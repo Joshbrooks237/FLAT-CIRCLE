@@ -13,7 +13,13 @@ export interface ThreatEvent {
     | "dns.takeover.suspected"
     | "client.integrity.low"
     | "exfiltration.velocity.exceeded"
-    | "ai.injection.attempt";
+    | "ai.injection.attempt"
+  | "forensic.stream.flushed"
+  | "forensic.stream.error"
+  | "incident.package.sealed"
+  | "compliance.report.generated"
+  | "legal.hold.activated"
+  | "legal.hold.released";
   timestamp: number;
   ip: string;
   sessionId: string;
@@ -135,6 +141,19 @@ export interface AIInjectionState {
   recentAttempts: Array<{ id: string; timestamp: number; pattern: string; sanitized: boolean }>;
 }
 
+export type ForensicStreamStatus = "streaming" | "buffered" | "unreachable";
+
+export interface Layer22State {
+  streamStatus: ForensicStreamStatus;
+  exportedLeafCount: number;
+  incidentPackageCount: number;
+  lastComplianceReportAt: number | null;
+  nextComplianceReportAt: number | null;
+  legalHoldActive: boolean;
+  legalHoldSince: number | null;
+  legalHoldReason: string | null;
+}
+
 export interface DashboardState {
   events: ThreatEvent[];
   shadowSessions: ShadowSession[];
@@ -160,6 +179,7 @@ export interface DashboardState {
   layer19: ClientIntegrityState;
   layer20: ExfiltrationState;
   layer21: AIInjectionState;
+  layer22: Layer22State;
 }
 
 export interface SlimeEvent {
@@ -260,6 +280,32 @@ const NARRATIONS = {
     "Cumulative transfer velocity for {identity} exceeds monthly baseline by {mult}x. Pattern consistent with slow-exfiltration campaign. Escalating.",
     "Data transfer rate for {identity}: {rate} MB/hr sustained over {hours} hours. No legitimate use case explains this. AI classification: exfiltration.",
   ],
+  "forensic.stream.flushed": [
+    "Forensic stream flushed — {count} leaves exported to {target}. Total exported: {total}. Append-only. Chain intact.",
+    "{count} Merkle leaves streamed to forensic export target. Root hash included in each record. Nothing was overwritten.",
+    "Stream buffer flushed. {count} forensic records committed. The export is the permanent record.",
+  ],
+  "forensic.stream.error": [
+    "Forensic export target unreachable. {count} leaves buffered. Export will resume on reconnect. The record is never lost.",
+    "Stream error — export target unavailable. Buffer depth: {count}. Retrying.",
+  ],
+  "incident.package.sealed": [
+    "Session {session} sealed as forensic incident package #{count}. {leaves} Merkle leaves. Cryptographically signed. Chain of custody complete.",
+    "Incident package compiled for session {session}. AI narrative generated. Proof chain from open to close: {leaves} leaves. Package available for export.",
+    "Closed session sealed. Incident #{count}. Every request. Every response. Every classification. Signed. The record is what the whole thing is for.",
+  ],
+  "compliance.report.generated": [
+    "Weekly compliance report generated. Threat volume: {threats} events. {redacted} secrets intercepted. Chain of custody: continuous. Next report in 7 days.",
+    "Security posture report sealed. Merkle root history verified across reporting period. No gaps in cryptographic continuity.",
+  ],
+  "legal.hold.activated": [
+    "LEGAL HOLD ACTIVATED. Merkle state frozen at root {root}. Separate immutable record begins from this point. Nothing automated will touch the frozen record.",
+    "Legal hold declared. {count} leaves sealed. Timestamped signature applied. The record does not change until the hold is released.",
+  ],
+  "legal.hold.released": [
+    "Legal hold released after {duration}. Frozen record preserved. Export available for legal discovery at any time.",
+    "Hold {holdId} released. The frozen period remains sealed and verifiable. The current record continues.",
+  ],
   "ai.injection.attempt": [
     "Prompt injection detected in {field}: role-override instruction smuggled in HTTP header. Sanitized. Original preserved as Merkle leaf pair.",
     "System prompt override attempt via JSON payload encoding in {field}. Instruction: '{snippet}'. Neutralized. This was deliberate.",
@@ -306,7 +352,16 @@ function randomNarration(type: ThreatEvent["type"], ip: string, sessionId: strin
     .replace("{threshold}", "100 MB")
     .replace("{mult}", String(Math.floor(Math.random() * 8 + 2)))
     .replace("{rate}", (Math.random() * 40 + 5).toFixed(1))
-    .replace("{hours}", String(Math.floor(Math.random() * 48 + 2)));
+    .replace("{hours}", String(Math.floor(Math.random() * 48 + 2)))
+    .replace("{count}", String(Math.floor(Math.random() * 200 + 50)))
+    .replace("{total}", String(Math.floor(Math.random() * 90_000 + 10_000)))
+    .replace("{target}", ["s3://flat-circle-forensic", "filesystem/.flat-circle/forensic", "webhook-endpoint"][Math.floor(Math.random() * 3)]!)
+    .replace("{leaves}", String(Math.floor(Math.random() * 400 + 20)))
+    .replace("{threats}", String(Math.floor(Math.random() * 8000 + 1000)))
+    .replace("{redacted}", String(Math.floor(Math.random() * 80 + 5)))
+    .replace("{root}", Math.random().toString(16).slice(2, 18))
+    .replace("{duration}", ["2 days", "5 days", "14 days", "30 days"][Math.floor(Math.random() * 4)]!)
+    .replace("{holdId}", `hold-${Math.random().toString(36).slice(2, 10)}`);
 }
 
 function randomIp(): string {
@@ -348,6 +403,11 @@ const EVENT_TYPES: ThreatEvent["type"][] = [
   "exfiltration.velocity.exceeded",
   "ai.injection.attempt",
   "ai.injection.attempt",
+  "forensic.stream.flushed",
+  "forensic.stream.flushed",
+  "incident.package.sealed",
+  "compliance.report.generated",
+  "legal.hold.activated",
 ];
 
 const THREAT_CLASSES: ThreatClass[] = [
@@ -381,6 +441,7 @@ const LAYER_NAMES = [
   "Client Integrity",
   "Exfiltration Monitor",
   "AI Input Sanitization",
+  "Forensic Export",
 ];
 
 const INITIAL_LAYERS: LayerState[] = LAYER_NAMES.map((name, i) => ({
@@ -497,6 +558,16 @@ export function useSimulatedData(): DashboardState {
     layer21: {
       totalAttempts: 0,
       recentAttempts: [],
+    },
+    layer22: {
+      streamStatus: "streaming",
+      exportedLeafCount: 0,
+      incidentPackageCount: 0,
+      lastComplianceReportAt: null,
+      nextComplianceReportAt: Date.now() + 7 * 86_400_000,
+      legalHoldActive: false,
+      legalHoldSince: null,
+      legalHoldReason: null,
     },
   });
 
@@ -697,6 +768,46 @@ export function useSimulatedData(): DashboardState {
           newLayers = newLayers.map((l) => l.id === 21 ? { ...l, hitCount: l.hitCount + 1 } : l);
         }
 
+        // Layer 22 simulation
+        let layer22 = prev.layer22;
+        if (event.type === "forensic.stream.flushed") {
+          const batchSize = Math.floor(Math.random() * 200 + 50);
+          layer22 = {
+            ...layer22,
+            streamStatus: "streaming",
+            exportedLeafCount: layer22.exportedLeafCount + batchSize,
+          };
+          newLayers = newLayers.map((l) => l.id === 22 ? { ...l, hitCount: l.hitCount + 1 } : l);
+        } else if (event.type === "forensic.stream.error") {
+          layer22 = { ...layer22, streamStatus: "unreachable" };
+        } else if (event.type === "incident.package.sealed") {
+          layer22 = {
+            ...layer22,
+            incidentPackageCount: layer22.incidentPackageCount + 1,
+            exportedLeafCount: layer22.exportedLeafCount + Math.floor(Math.random() * 100 + 20),
+          };
+          newLayers = newLayers.map((l) => l.id === 22 ? { ...l, hitCount: l.hitCount + 1 } : l);
+        } else if (event.type === "compliance.report.generated") {
+          layer22 = {
+            ...layer22,
+            lastComplianceReportAt: Date.now(),
+            nextComplianceReportAt: Date.now() + 7 * 86_400_000,
+          };
+          newLayers = newLayers.map((l) => l.id === 22 ? { ...l, hitCount: l.hitCount + 1 } : l);
+        } else if (event.type === "legal.hold.activated" && !layer22.legalHoldActive) {
+          layer22 = {
+            ...layer22,
+            legalHoldActive: true,
+            legalHoldSince: Date.now(),
+            legalHoldReason: "Regulatory investigation",
+          };
+        } else if (event.type === "legal.hold.released") {
+          layer22 = { ...layer22, legalHoldActive: false, legalHoldSince: null, legalHoldReason: null };
+        } else {
+          // Passive: stream slowly accumulates exported leaves on every tick
+          layer22 = { ...layer22, exportedLeafCount: layer22.exportedLeafCount + Math.floor(Math.random() * 3) };
+        }
+
         return {
           ...prev,
           events: [event, ...prev.events.slice(0, 49)],
@@ -713,6 +824,7 @@ export function useSimulatedData(): DashboardState {
           layer19,
           layer20,
           layer21,
+          layer22,
         };
       });
 
@@ -730,6 +842,8 @@ export function useSimulatedData(): DashboardState {
       if (event.type === "dns.takeover.suspected") addSlimeEvent("flare");
       if (event.type === "ai.injection.attempt") addSlimeEvent("ring");
       if (event.type === "exfiltration.velocity.exceeded") addSlimeEvent("darken");
+      if (event.type === "incident.package.sealed") addSlimeEvent("ring");
+      if (event.type === "legal.hold.activated") addSlimeEvent("flare");
     };
 
     // Staggered intervals to feel organic, not mechanical

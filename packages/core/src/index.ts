@@ -1,7 +1,7 @@
 /**
  * @flat-circle/core — Public API
  *
- * Twenty-one layers. Four AI tiers. One philosophy.
+ * Twenty-two layers. Four AI tiers. One philosophy.
  */
 
 // Types
@@ -37,6 +37,12 @@ export type {
   Layer20Config,
   ExfiltrationThresholds,
   Layer21Config,
+  Layer22Config,
+  ForensicExportTargetType,
+  IncidentPackageFormat,
+  ComplianceReportFormat,
+  ComplianceReportSchedule,
+  ForensicExportTargetConfig,
   UpstreamAbsorberConfig,
   UpstreamAbsorberProvider,
   FlatCircleRequest,
@@ -158,6 +164,26 @@ export type {
   InjectionPatternType,
   SanitizationResult,
 } from "./layers/layer21-ai-sanitization.js";
+
+// Layer 22
+export {
+  ForensicExportEngine,
+  ForensicStreamExporter,
+  IncidentPackageBuilder,
+  ComplianceReportGenerator,
+  LegalHoldManager,
+  ChainOfCustodyVerifier,
+  verifySignature,
+} from "./layers/layer22-forensic.js";
+export type {
+  ForensicStreamStatus,
+  ForensicLeafRecord,
+  IncidentPackage,
+  ComplianceReport,
+  ComplianceReportInput,
+  LegalHold,
+  VerificationResult,
+} from "./layers/layer22-forensic.js";
 
 // Layer 11
 export {

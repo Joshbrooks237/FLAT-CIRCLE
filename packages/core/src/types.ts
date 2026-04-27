@@ -818,6 +818,131 @@ export interface Layer21Config {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
+// Layer 22 — Forensic Export and Chain of Custody
+// ─────────────────────────────────────────────────────────────────────────────
+
+export type ForensicExportTargetType =
+  | "s3"
+  | "gcs"
+  | "azure-blob"
+  | "filesystem"
+  | "webhook"
+  | "postgres"
+  | "redis";
+
+export type IncidentPackageFormat = "json" | "zip";
+
+export type ComplianceReportFormat = "json" | "csv";
+
+export type ComplianceReportSchedule = "daily" | "weekly" | "monthly" | "on-demand";
+
+export interface ForensicExportTargetConfig {
+  /**
+   * Destination type for the forensic export stream.
+   */
+  readonly type: ForensicExportTargetType;
+  /**
+   * Bucket name, container name, or filesystem directory path.
+   * Required for s3, gcs, azure-blob, and filesystem targets.
+   */
+  readonly bucketOrPath?: string;
+  /**
+   * Webhook or custom S3-compatible endpoint URL.
+   */
+  readonly endpoint?: string;
+  /**
+   * Target-specific credentials (access key, secret, connection string, etc.).
+   * Values are read from environment variables by default when omitted.
+   */
+  readonly credentials?: Record<string, string>;
+  /**
+   * Cloud region for S3 and GCS targets.
+   */
+  readonly region?: string;
+  /**
+   * How often to flush the in-memory stream buffer to the target (seconds).
+   * @default 30
+   */
+  readonly flushIntervalSeconds?: number;
+  /**
+   * Maximum number of leaves to buffer before triggering an immediate flush.
+   * @default 1000
+   */
+  readonly maxBufferSize?: number;
+}
+
+export interface Layer22Config {
+  readonly enabled: boolean;
+
+  // ── Mode 1 — Continuous Forensic Stream ──────────────────────────────────
+  /**
+   * Enable real-time streaming of every Merkle leaf to the export target.
+   * @default true
+   */
+  readonly streamEnabled?: boolean;
+  /**
+   * Destination for the continuous forensic stream.
+   * When omitted, leaves are buffered in memory only.
+   */
+  readonly exportTarget?: ForensicExportTargetConfig;
+
+  // ── Mode 2 — Incident Package Export ──────────────────────────────────────
+  /**
+   * Automatically compile and seal an incident package when Layer 9
+   * closes a classified session. @default true
+   */
+  readonly incidentPackageEnabled?: boolean;
+  /**
+   * Output formats for compiled incident packages. @default ["json"]
+   */
+  readonly incidentPackageFormats?: IncidentPackageFormat[];
+  /**
+   * PEM-encoded PKCS#8 private key used to sign incident packages and
+   * compliance reports. When omitted, packages are unsigned (integrity via
+   * Merkle proof only).
+   */
+  readonly signingPrivateKeyPath?: string;
+
+  // ── Mode 3 — Compliance Report Generation ────────────────────────────────
+  /**
+   * Enable scheduled compliance report generation. @default true
+   */
+  readonly complianceReportEnabled?: boolean;
+  /**
+   * How often to generate compliance reports. @default "weekly"
+   */
+  readonly complianceReportSchedule?: ComplianceReportSchedule;
+  /**
+   * Output formats for compliance reports. @default ["json"]
+   */
+  readonly complianceReportFormats?: ComplianceReportFormat[];
+
+  // ── Mode 4 — Legal Hold ───────────────────────────────────────────────────
+  /**
+   * Webhook URL that, when called with POST, activates or releases a legal hold.
+   * Payload: { "action": "activate" | "release", "reason": string }
+   */
+  readonly legalHoldWebhookUrl?: string;
+  /**
+   * Enable the legal hold API endpoint on the proxy. @default true
+   */
+  readonly legalHoldApiEnabled?: boolean;
+
+  // ── Chain of Custody ─────────────────────────────────────────────────────
+  /**
+   * PEM-encoded public key distributed to verifying parties.
+   * When provided, it is embedded in every export so recipients can
+   * verify signatures without access to this system.
+   */
+  readonly verificationPublicKey?: string;
+  /**
+   * URL of a trusted time-stamping authority (RFC 3161).
+   * When provided, exports include a signed timestamp token.
+   */
+  readonly timestampAuthorityUrl?: string;
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 // Storage adapters
 // ─────────────────────────────────────────────────────────────────────────────
 
@@ -905,6 +1030,7 @@ export interface LayerConfig {
   readonly layer19?: Layer19Config;
   readonly layer20?: Layer20Config;
   readonly layer21?: Layer21Config;
+  readonly layer22?: Layer22Config;
 }
 
 export interface FlatCircleConfig {
@@ -978,7 +1104,13 @@ export type EventType =
   | "dns.takeover.suspected"
   | "client.integrity.low"
   | "exfiltration.velocity.exceeded"
-  | "ai.injection.attempt";
+  | "ai.injection.attempt"
+  | "forensic.stream.flushed"
+  | "forensic.stream.error"
+  | "incident.package.sealed"
+  | "compliance.report.generated"
+  | "legal.hold.activated"
+  | "legal.hold.released";
 
 export interface FlatCircleEvent {
   readonly id: string;

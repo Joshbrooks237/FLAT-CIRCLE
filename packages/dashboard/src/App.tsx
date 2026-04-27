@@ -1,7 +1,8 @@
 import { useRef } from "react";
 import SlimeOrganism from "./components/SlimeOrganism";
 import { useSimulatedData } from "./hooks/useSimulatedData";
-import type { ThreatEvent, AITier, ThreatClass, TarpitNodeState, UpstreamStatus, DNSPoint } from "./hooks/useSimulatedData";
+import { useState } from "react";
+import type { ThreatEvent, AITier, ThreatClass, TarpitNodeState, UpstreamStatus, DNSPoint, Layer22State, ForensicStreamStatus } from "./hooks/useSimulatedData";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Color helpers
@@ -29,6 +30,12 @@ function eventColor(type: ThreatEvent["type"]): string {
     case "client.integrity.low":         return "#ffaa33";
     case "exfiltration.velocity.exceeded": return "#ff4488";
     case "ai.injection.attempt":         return "#aa44ff";
+    case "forensic.stream.flushed":      return "#00ccff";
+    case "forensic.stream.error":        return "#ff3300";
+    case "incident.package.sealed":      return "#00aaff";
+    case "compliance.report.generated":  return "#44aaff";
+    case "legal.hold.activated":         return "#ff4488";
+    case "legal.hold.released":          return "#44ff88";
     default:                          return "#00f07a";
   }
 }
@@ -417,6 +424,262 @@ function InjectionAttemptBadge({ pattern, timestamp }: { pattern: string; timest
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
+// Layer 22 — Forensic Export components
+// ─────────────────────────────────────────────────────────────────────────────
+
+function ForensicStreamPulse({ status, exportedLeafCount }: { status: ForensicStreamStatus; exportedLeafCount: number }) {
+  const color = status === "streaming" ? "#00ccff" : status === "buffered" ? "#ffaa33" : "#ff3300";
+  const label = status === "streaming" ? "STREAMING" : status === "buffered" ? "BUFFERED" : "UNREACHABLE";
+  return (
+    <div className="flex items-center gap-2">
+      <div
+        className="rounded-full flex-shrink-0"
+        style={{
+          width: "6px", height: "6px",
+          background: color,
+          boxShadow: `0 0 6px ${color}99`,
+          animation: status === "streaming" ? "pulse 3s ease-in-out infinite" : status === "unreachable" ? "pulse 0.8s infinite" : "none",
+        }}
+      />
+      <span style={{ color, fontSize: "9px", fontFamily: "JetBrains Mono", letterSpacing: "0.1em" }}>
+        {label}
+      </span>
+      <span style={{ color: `${color}55`, fontSize: "8px", fontFamily: "JetBrains Mono" }}>
+        {exportedLeafCount.toLocaleString()} leaves
+      </span>
+    </div>
+  );
+}
+
+function LegalHoldBadge({ active, since, reason, onToggle }: {
+  active: boolean;
+  since: number | null;
+  reason: string | null;
+  onToggle: () => void;
+}) {
+  const [confirming, setConfirming] = useState(false);
+
+  const handleClick = () => {
+    if (active) {
+      setConfirming(true);
+    } else {
+      setConfirming(true);
+    }
+  };
+
+  const handleConfirm = () => {
+    onToggle();
+    setConfirming(false);
+  };
+
+  const durationStr = since ? formatAge(Date.now() - since) : null;
+
+  return (
+    <div
+      className="flex flex-col gap-1 rounded px-3 py-2"
+      style={{
+        border: active
+          ? "1px solid rgba(255,68,136,0.4)"
+          : "1px solid rgba(255,255,255,0.06)",
+        background: active ? "rgba(40,0,15,0.8)" : "transparent",
+        transition: "all 0.4s ease",
+      }}
+    >
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <div
+            className="rounded-full flex-shrink-0"
+            style={{
+              width: "6px", height: "6px",
+              background: active ? "#ff4488" : "rgba(255,255,255,0.1)",
+              boxShadow: active ? "0 0 6px rgba(255,68,136,0.8)" : "none",
+              animation: active ? "pulse 1.2s ease-in-out infinite" : "none",
+            }}
+          />
+          <span style={{
+            color: active ? "#ff4488" : "rgba(255,255,255,0.25)",
+            fontSize: "9px",
+            fontFamily: "JetBrains Mono",
+            letterSpacing: "0.12em",
+          }}>
+            LEGAL HOLD {active ? "ACTIVE" : "INACTIVE"}
+          </span>
+        </div>
+        {!confirming ? (
+          <button
+            onClick={handleClick}
+            style={{
+              background: "none",
+              border: `1px solid ${active ? "rgba(255,68,136,0.3)" : "rgba(255,255,255,0.1)"}`,
+              color: active ? "rgba(255,68,136,0.7)" : "rgba(255,255,255,0.2)",
+              fontSize: "8px",
+              fontFamily: "JetBrains Mono",
+              padding: "1px 6px",
+              borderRadius: "2px",
+              cursor: "pointer",
+              letterSpacing: "0.05em",
+            }}
+          >
+            {active ? "RELEASE" : "ACTIVATE"}
+          </button>
+        ) : (
+          <div className="flex gap-1">
+            <button
+              onClick={handleConfirm}
+              style={{
+                background: "none",
+                border: "1px solid rgba(255,68,136,0.5)",
+                color: "#ff4488",
+                fontSize: "7px",
+                fontFamily: "JetBrains Mono",
+                padding: "1px 5px",
+                borderRadius: "2px",
+                cursor: "pointer",
+              }}
+            >
+              CONFIRM
+            </button>
+            <button
+              onClick={() => setConfirming(false)}
+              style={{
+                background: "none",
+                border: "1px solid rgba(255,255,255,0.08)",
+                color: "rgba(255,255,255,0.25)",
+                fontSize: "7px",
+                fontFamily: "JetBrains Mono",
+                padding: "1px 5px",
+                borderRadius: "2px",
+                cursor: "pointer",
+              }}
+            >
+              CANCEL
+            </button>
+          </div>
+        )}
+      </div>
+      {active && durationStr && (
+        <div className="flex flex-col gap-0.5">
+          <span style={{ color: "rgba(255,68,136,0.5)", fontSize: "8px", fontFamily: "JetBrains Mono" }}>
+            SINCE {durationStr} · {reason ?? "unspecified reason"}
+          </span>
+          <span style={{ color: "rgba(255,68,136,0.3)", fontSize: "7px", fontFamily: "JetBrains Mono" }}>
+            Frozen Merkle state sealed. No automated rotation until released.
+          </span>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function ComplianceReportPanel({ lastAt, nextAt, incidentCount }: {
+  lastAt: number | null;
+  nextAt: number | null;
+  incidentCount: number;
+}) {
+  return (
+    <div className="flex flex-col gap-1">
+      <div className="flex items-center justify-between">
+        <span style={{ color: "rgba(0,170,255,0.5)", fontSize: "8px", fontFamily: "JetBrains Mono", letterSpacing: "0.1em" }}>
+          FORENSIC PACKAGES
+        </span>
+        <span style={{ color: "#00aaff", fontSize: "10px", fontFamily: "JetBrains Mono" }}>
+          {incidentCount}
+        </span>
+      </div>
+      <div className="flex items-center justify-between">
+        <span style={{ color: "rgba(0,170,255,0.35)", fontSize: "7px", fontFamily: "JetBrains Mono" }}>LAST REPORT</span>
+        <span style={{ color: "rgba(0,170,255,0.6)", fontSize: "8px", fontFamily: "JetBrains Mono" }}>
+          {lastAt ? formatAge(Date.now() - lastAt) : "—"}
+        </span>
+      </div>
+      <div className="flex items-center justify-between">
+        <span style={{ color: "rgba(0,170,255,0.35)", fontSize: "7px", fontFamily: "JetBrains Mono" }}>NEXT REPORT</span>
+        <span style={{ color: "rgba(0,170,255,0.6)", fontSize: "8px", fontFamily: "JetBrains Mono" }}>
+          {nextAt ? `in ${Math.floor((nextAt - Date.now()) / 86_400_000)}d` : "—"}
+        </span>
+      </div>
+    </div>
+  );
+}
+
+function ChainOfCustodyVerifierWidget({ merkleRoot }: { merkleRoot: string }) {
+  const [input, setInput] = useState("");
+  const [result, setResult] = useState<{ valid: boolean; reason: string } | null>(null);
+
+  const handleVerify = () => {
+    if (!input.trim()) return;
+    // Simulated verification: check if the pasted value matches the current root
+    // or is an 8+ character hex string (simulating a leaf hash lookup)
+    const trimmed = input.trim();
+    const looksLikeHash = /^[0-9a-f]{8,}$/i.test(trimmed);
+    const isCurrentRoot = trimmed === merkleRoot;
+    const valid = isCurrentRoot || (looksLikeHash && Math.random() > 0.3);
+    setResult({
+      valid,
+      reason: isCurrentRoot
+        ? "Matches current live Merkle root"
+        : valid
+          ? "Leaf hash found in forensic registry"
+          : "Hash not found in current Merkle tree",
+    });
+  };
+
+  return (
+    <div className="flex flex-col gap-1">
+      <span style={{ color: "rgba(0,170,255,0.4)", fontSize: "8px", fontFamily: "JetBrains Mono", letterSpacing: "0.1em" }}>
+        CHAIN OF CUSTODY VERIFY
+      </span>
+      <div className="flex gap-1">
+        <input
+          type="text"
+          value={input}
+          onChange={(e) => { setInput(e.target.value); setResult(null); }}
+          placeholder="paste leaf hash or package hash"
+          style={{
+            background: "rgba(0,170,255,0.04)",
+            border: "1px solid rgba(0,170,255,0.15)",
+            color: "rgba(0,170,255,0.8)",
+            fontSize: "8px",
+            fontFamily: "JetBrains Mono",
+            padding: "3px 6px",
+            borderRadius: "2px",
+            flex: 1,
+            outline: "none",
+          }}
+          onKeyDown={(e) => { if (e.key === "Enter") handleVerify(); }}
+        />
+        <button
+          onClick={handleVerify}
+          style={{
+            background: "none",
+            border: "1px solid rgba(0,170,255,0.2)",
+            color: "rgba(0,170,255,0.6)",
+            fontSize: "7px",
+            fontFamily: "JetBrains Mono",
+            padding: "2px 6px",
+            borderRadius: "2px",
+            cursor: "pointer",
+          }}
+        >
+          VERIFY
+        </button>
+      </div>
+      {result && (
+        <span style={{
+          color: result.valid ? "#00ccff" : "#ff4400",
+          fontSize: "8px",
+          fontFamily: "JetBrains Mono",
+          borderLeft: `2px solid ${result.valid ? "#00ccff44" : "#ff440044"}`,
+          paddingLeft: "5px",
+        }}>
+          {result.valid ? "✓ " : "✗ "}{result.reason}
+        </span>
+      )}
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 // Main App
 // ─────────────────────────────────────────────────────────────────────────────
 
@@ -428,7 +691,16 @@ export default function App() {
     (e) => e.threatClass === "nation-state"
   );
   const { layer14 } = data;
-  const { layer15, layer16, layer17, layer18, layer19, layer20, layer21 } = data;
+  const { layer15, layer16, layer17, layer18, layer19, layer20, layer21, layer22 } = data;
+  const [legalHoldOverride, setLegalHoldOverride] = useState<boolean | null>(null);
+  const effectiveLegalHold: Layer22State = {
+    ...layer22,
+    legalHoldActive: legalHoldOverride !== null ? legalHoldOverride : layer22.legalHoldActive,
+    legalHoldSince: legalHoldOverride === true && !layer22.legalHoldActive ? Date.now() : layer22.legalHoldSince,
+  };
+  const handleLegalHoldToggle = () => {
+    setLegalHoldOverride((prev) => prev === null ? !layer22.legalHoldActive : !prev);
+  };
 
   const merkleShort = data.merkle.root.slice(0, 8) + "..." + data.merkle.root.slice(-8);
 
@@ -505,6 +777,7 @@ export default function App() {
             { label: "CANARIES", value: data.stats.canariesFired },
             { label: "MERKLE LEAVES", value: data.stats.merkleLeaves.toLocaleString() },
             { label: "SECRETS REDACTED", value: layer16.totalRedacted },
+          { label: "FORENSIC LEAVES", value: layer22.exportedLeafCount.toLocaleString() },
           ].map(({ label, value }) => (
             <div key={label} className="flex flex-col items-end">
               <span style={{ color: "#00f07a", fontSize: "13px", fontWeight: 500 }}>{value}</span>
@@ -583,6 +856,46 @@ export default function App() {
           <div className="absolute inset-0 pointer-events-none" style={{ opacity: 0.7 }}>
             <DNSConstellation points={layer18.points} />
           </div>
+
+          {/* Layer 22 — Forensic stream indicator at the base */}
+          <div
+            className="absolute bottom-3 left-4"
+            style={{ pointerEvents: "none" }}
+          >
+            <ForensicStreamPulse
+              status={effectiveLegalHold.streamStatus}
+              exportedLeafCount={effectiveLegalHold.exportedLeafCount}
+            />
+          </div>
+
+          {/* Layer 22 — Legal hold indicator overlay */}
+          {effectiveLegalHold.legalHoldActive && (
+            <div
+              className="absolute top-4 left-4"
+              style={{
+                border: "1px solid rgba(255,68,136,0.4)",
+                background: "rgba(20,0,8,0.7)",
+                borderRadius: "4px",
+                padding: "3px 8px",
+                display: "flex",
+                alignItems: "center",
+                gap: "6px",
+              }}
+            >
+              <div
+                className="rounded-full"
+                style={{
+                  width: "5px", height: "5px",
+                  background: "#ff4488",
+                  boxShadow: "0 0 5px rgba(255,68,136,0.8)",
+                  animation: "pulse 1.5s infinite",
+                }}
+              />
+              <span style={{ color: "#ff4488", fontSize: "8px", letterSpacing: "0.15em", fontFamily: "JetBrains Mono" }}>
+                LEGAL HOLD ACTIVE — MERKLE STATE FROZEN
+              </span>
+            </div>
+          )}
 
           {layer14.floodActive && (
             <div
@@ -745,6 +1058,32 @@ export default function App() {
             </div>
           )}
 
+          {/* Layer 22 — Forensic Export panel */}
+          <div style={{ borderBottom: "1px solid rgba(0,170,255,0.08)", flexShrink: 0 }}>
+            <div
+              className="px-4 py-2"
+              style={{ borderBottom: "1px solid rgba(0,170,255,0.06)" }}
+            >
+              <span style={{ color: "rgba(0,170,255,0.6)", fontSize: "9px", letterSpacing: "0.15em" }}>
+                FORENSIC EXPORT / L22
+              </span>
+            </div>
+            <div className="px-4 py-2 flex flex-col gap-2">
+              <LegalHoldBadge
+                active={effectiveLegalHold.legalHoldActive}
+                since={effectiveLegalHold.legalHoldSince}
+                reason={effectiveLegalHold.legalHoldReason}
+                onToggle={handleLegalHoldToggle}
+              />
+              <ComplianceReportPanel
+                lastAt={effectiveLegalHold.lastComplianceReportAt}
+                nextAt={effectiveLegalHold.nextComplianceReportAt}
+                incidentCount={effectiveLegalHold.incidentPackageCount}
+              />
+              <ChainOfCustodyVerifierWidget merkleRoot={data.merkle.root} />
+            </div>
+          </div>
+
           {/* Layer 14 — Tarpit panel */}
           <div style={{ borderBottom: "1px solid rgba(255,136,0,0.08)", flexShrink: 0 }}>
             <div
@@ -860,7 +1199,7 @@ export default function App() {
         {/* Layer status */}
         <div className="flex-1 px-4 py-2 overflow-hidden">
           <span style={{ color: "rgba(0,240,122,0.35)", fontSize: "8px", letterSpacing: "0.15em" }}>
-            TWENTY-ONE LAYERS
+            TWENTY-TWO LAYERS
           </span>
           <div className="grid grid-cols-3 gap-x-3 gap-y-1 mt-2">
             {data.layers.map((l) => (

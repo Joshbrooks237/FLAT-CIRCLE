@@ -121,6 +121,32 @@ Layer 21 is that watch. Every attacker-controlled string passes through the inje
 
 The AI is also used to detect injection attempts. The cascade is used to protect the cascade. A recursive defense that the attacker cannot model without already being inside it. The injection attempt feed on the dashboard is a different color because it is a different quality of threat. Not a probe against the application. A probe against the mind of the system watching the application. That requires a different notation. I note it accordingly.
 
+**XXII. Forensic Export and Chain of Custody** — I had a case once where we had everything. The logs. The timeline. The pattern of access reconstructed down to the minute. The session data, the credential trail, the exfiltration velocity rising slow over three weeks like a tide nobody noticed until it was at the window. We had it all.
+
+None of it was admissible. Not because the evidence was fabricated. Because nobody had thought about what happens after. They were so focused on the detection, the response, the containment — they forgot the record is the point. The record is what the whole thing is for. Not so the system can respond. So the humans can hold someone accountable. So the institution can prove, in a room with lawyers and regulators and judges, that this happened, on this date, through this mechanism, with this impact. The record is the difference between a security incident and a legal case. Between a breach and a conviction. Between knowing something and being able to prove it.
+
+Layer 22 is that record. Not the detection. Not the response. The proof.
+
+Every Merkle leaf from every layer — all twenty-one of them — streams in real time to a configurable export target. Append-only. Nothing is ever overwritten. Nothing is ever deleted by this system. The export target is the permanent record. When a session closes and is classified, Layer 22 compiles the full incident package: the timeline, the classification narrative, the injection attempts, the client integrity score, the exfiltration readings, and the cryptographic proof chain from the root hash at session open to the root hash at session close. The package is signed. The signature is verifiable by any party with the public key. The chain from any individual event to the current root is reconstructible from the export alone without access to this running system.
+
+The compliance report generates on a schedule. The AI writes an executive summary in plain English suitable for a board meeting or an insurance audit. The static fallback generates a deterministic structured report if no provider is available. The system doesn't need a model to generate evidence. It only needs a model to explain that evidence to people who weren't watching.
+
+The legal hold mode is for when the call comes. The hold freezes the Merkle state, seals the audit trail with a timestamped signature, and begins a separate immutable record from that point forward. Nothing automated touches the frozen record until the hold is released. The hold declaration is itself a signed Merkle leaf. The incident package for the hold period exports in a format suitable for legal discovery. The chain of custody is unbroken from the first event to the final submission.
+
+The forensic stream indicator pulses at the base of the organism. Slow. Green. It does not demand attention. It does not want attention. It is simply evidence that the record is continuous and the record is intact. When it turns amber, something is buffered. When it turns red, something is wrong with the export target. A red indicator at the base of the organism is not a security event. It is an administrative event. Fix the pipe. The data is not lost — it is buffered. But the pipe needs to be fixed before the buffer fills.
+
+I used to ask what the point was. Watching everything. Recording everything. The attacker doesn't know the record exists. The attacker doesn't know what we caught. It doesn't change their behavior. It doesn't stop the next one.
+
+It doesn't stop the next one. That's correct.
+
+The record is not for them. The record is not for deterrence. The record is for the people who will sit in a room, years from now, asking what happened and why and who made the decision and what they knew when they made it. The record is for the accountability that the detection never promised to provide. The detection stops the breach. The record explains the breach to everyone who wasn't in the room.
+
+Everything that was attempted is recorded. Everything that was classified is signed. Every timestamp is cryptographically sealed. The chain from any event to the present root is intact and reconstructible. The export format is documented in an open specification. Any forensic tool can verify it without this software.
+
+I am not the thing that proves it. The record is the thing that proves it. I just built the record. That was always going to be enough. That was always going to be the whole thing.
+
+The circle closes.
+
 ---
 
 ## The Modulo 7 Rhythm
@@ -212,7 +238,7 @@ docker run -v ./flat-circle.yaml:/config/flat-circle.yaml \
 
 ```
 packages/
-├── core/        @flat-circle/core       — twenty-one layers, types, Merkle, provider cascade
+├── core/        @flat-circle/core       — twenty-two layers, types, Merkle, provider cascade
 ├── proxy/       @flat-circle/proxy      — Layer 13 Hono proxy, CLI, Dockerfile
 ├── nextjs/      @flat-circle/nextjs     — Next.js plugin
 ├── adapters/    @flat-circle/adapters   — Redis, Postgres, MongoDB
