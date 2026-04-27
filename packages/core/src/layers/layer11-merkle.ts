@@ -454,8 +454,3 @@ export function issueCanaryToken(
   };
 }
 
-// Re-export helper for direct use
-function hashLeafData(data: Record<string, unknown>, algorithm: HashAlgorithm): string {
-  const serialized = JSON.stringify(data, Object.keys(data).sort());
-  return createHash(algorithm).update(serialized).digest("hex");
-}

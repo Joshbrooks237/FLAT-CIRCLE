@@ -14,7 +14,8 @@ environment: development
 logLevel: info
 
 ai:
-  # Tier 4 always active — no API keys needed for local dev
+  recoveryIntervalSeconds: 300
+  # Tier 4 static fallback is always active — no API keys needed for local dev.
   # Uncomment to add real AI providers:
   # openai:
   #   apiKey: ${OPENAI_API_KEY}

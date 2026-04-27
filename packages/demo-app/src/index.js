@@ -13,7 +13,7 @@
  */
 
 import { Hono } from "hono";
-import { createServer } from "@hono/node-server";
+import { serve } from "@hono/node-server";
 
 const app = new Hono();
 
@@ -385,7 +385,7 @@ app.get("/api/status", (c) => c.json({
 
 const PORT = parseInt(process.env.PORT ?? "3000", 10);
 
-createServer({ fetch: app.fetch, port: PORT }, () => {
+serve({ fetch: app.fetch, port: PORT }, () => {
   console.log(`[Demo App] Running on http://localhost:${PORT}`);
   console.log(`[Demo App] Endpoints:`);
   console.log(`           GET  /           — homepage`);

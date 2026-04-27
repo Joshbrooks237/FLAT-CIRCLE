@@ -10,6 +10,34 @@
       "import": "./dist/index.js",
       "require": "./dist/index.cjs",
       "types": "./dist/index.d.ts"
+    },
+    "./types": {
+      "import": "./dist/types.mjs",
+      "require": "./dist/types.js"
+    },
+    "./provider-cascade": {
+      "import": "./dist/provider-cascade.mjs",
+      "require": "./dist/provider-cascade.js"
+    },
+    "./mod7": {
+      "import": "./dist/mod7.mjs",
+      "require": "./dist/mod7.js"
+    },
+    "./pipeline": {
+      "import": "./dist/pipeline.mjs",
+      "require": "./dist/pipeline.js"
+    },
+    "./layers/layer2-honeypot": {
+      "import": "./dist/layers/layer2-honeypot.mjs",
+      "require": "./dist/layers/layer2-honeypot.js"
+    },
+    "./layers/layer8-recursive": {
+      "import": "./dist/layers/layer8-recursive.mjs",
+      "require": "./dist/layers/layer8-recursive.js"
+    },
+    "./layers/layer11-merkle": {
+      "import": "./dist/layers/layer11-merkle.mjs",
+      "require": "./dist/layers/layer11-merkle.js"
     }
   },
   "scripts": {
