@@ -1,7 +1,7 @@
 import { useRef } from "react";
 import SlimeOrganism from "./components/SlimeOrganism";
 import { useSimulatedData } from "./hooks/useSimulatedData";
-import type { ThreatEvent, AITier, ThreatClass } from "./hooks/useSimulatedData";
+import type { ThreatEvent, AITier, ThreatClass, TarpitNodeState, UpstreamStatus } from "./hooks/useSimulatedData";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Color helpers
@@ -18,6 +18,9 @@ function eventColor(type: ThreatEvent["type"]): string {
     case "behavioral.anomaly":        return "#ffaa00";
     case "provider.failover":         return "#aaaaff";
     case "merkle.root.updated":       return "#44aaff";
+    case "tarpit.connection.absorbed": return "#ffaa33";
+    case "flood.detected":            return "#ff8800";
+    case "upstream.escalated":        return "#ff6600";
     default:                          return "#00f07a";
   }
 }
@@ -108,18 +111,18 @@ function Mod7Ring({ label, value, color = "#00f07a" }: { label: string; value: n
 // Layer status blob
 // ─────────────────────────────────────────────────────────────────────────────
 
-function LayerBlob({ id, name, enabled, hitCount, isProxy }: { id: number; name: string; enabled: boolean; hitCount: number; isProxy?: boolean }) {
-  const color = enabled ? "#00f07a" : "#1a1a1a";
-  const textColor = enabled ? "#00f07a" : "#333";
-  const glow = enabled ? "0 0 6px rgba(0,240,122,0.3)" : "none";
+function LayerBlob({ id, name, enabled, hitCount, isProxy, isTarpit }: { id: number; name: string; enabled: boolean; hitCount: number; isProxy?: boolean; isTarpit?: boolean }) {
+  const color = isTarpit ? "#ffaa33" : enabled ? "#00f07a" : "#1a1a1a";
+  const textColor = isTarpit ? "rgba(255,170,50,0.8)" : enabled ? "#00f07a" : "#333";
+  const glow = isTarpit ? "0 0 6px rgba(255,170,50,0.4)" : enabled ? "0 0 6px rgba(0,240,122,0.3)" : "none";
 
   return (
     <div
       className="flex items-center gap-2 px-2 py-1 rounded"
       style={{
-        border: `1px solid ${enabled ? "rgba(0,240,122,0.2)" : "rgba(255,255,255,0.04)"}`,
-        background: isProxy ? "rgba(0,240,122,0.05)" : "transparent",
-        boxShadow: isProxy ? "0 0 0 1px rgba(0,240,122,0.15)" : "none",
+        border: `1px solid ${isTarpit ? "rgba(255,170,50,0.2)" : enabled ? "rgba(0,240,122,0.2)" : "rgba(255,255,255,0.04)"}`,
+        background: isTarpit ? "rgba(30,12,0,0.6)" : isProxy ? "rgba(0,240,122,0.05)" : "transparent",
+        boxShadow: isTarpit ? "0 0 0 1px rgba(255,170,50,0.1)" : isProxy ? "0 0 0 1px rgba(0,240,122,0.15)" : "none",
       }}
     >
       <div
@@ -128,13 +131,13 @@ function LayerBlob({ id, name, enabled, hitCount, isProxy }: { id: number; name:
           width: "6px", height: "6px",
           background: color,
           boxShadow: glow,
-          animation: enabled && hitCount % 3 === 0 ? "pulse 2s infinite" : "none",
+          animation: (isTarpit || (enabled && hitCount % 3 === 0)) ? "pulse 2s infinite" : "none",
         }}
       />
       <span style={{ color: textColor, fontSize: "10px", fontFamily: "JetBrains Mono", flex: 1 }}>
         {String(id).padStart(2, "0")} {name}
       </span>
-      <span style={{ color: "rgba(0,240,122,0.3)", fontSize: "9px", fontFamily: "JetBrains Mono" }}>
+      <span style={{ color: isTarpit ? "rgba(255,170,50,0.3)" : "rgba(0,240,122,0.3)", fontSize: "9px", fontFamily: "JetBrains Mono" }}>
         {hitCount.toLocaleString()}
       </span>
     </div>
@@ -175,6 +178,112 @@ function ShadowBubble({ ip, threatClass, depth, requestCount, startedAt }: {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
+// Layer 14 components
+// ─────────────────────────────────────────────────────────────────────────────
+
+function TarpitNode({ node }: { node: TarpitNodeState }) {
+  const ageSec = Math.floor((Date.now() - node.connectedAt) / 1_000);
+  return (
+    <div
+      className="flex items-center gap-2 px-2 py-1 rounded"
+      style={{
+        border: "1px solid rgba(255,160,50,0.18)",
+        background: "rgba(30,15,0,0.7)",
+      }}
+    >
+      <div
+        className="rounded-full flex-shrink-0"
+        style={{
+          width: "6px",
+          height: "6px",
+          background: "#ffaa33",
+          boxShadow: "0 0 6px rgba(255,170,50,0.6)",
+          animation: "pulse 3s ease-in-out infinite",
+        }}
+      />
+      <span style={{ color: "rgba(255,170,50,0.7)", fontSize: "9px", fontFamily: "JetBrains Mono", flex: 1 }}>
+        {node.ip}
+      </span>
+      <span style={{ color: "rgba(255,170,50,0.4)", fontSize: "8px", fontFamily: "JetBrains Mono" }}>
+        {ageSec}s · {node.bytesDelivered}B · m{node.mod7Seed}
+      </span>
+    </div>
+  );
+}
+
+function AbsorptionMeter({ pct, floodActive }: { pct: number; floodActive: boolean }) {
+  const barColor = pct > 85 ? "#ff4400" : pct > 50 ? "#ff8800" : "#ffaa33";
+  return (
+    <div className="flex flex-col gap-1">
+      <div className="flex items-center justify-between">
+        <span style={{ color: "rgba(255,170,50,0.5)", fontSize: "8px", letterSpacing: "0.12em", fontFamily: "JetBrains Mono" }}>
+          ABSORPTION CAPACITY
+        </span>
+        <span style={{ color: barColor, fontSize: "9px", fontFamily: "JetBrains Mono" }}>
+          {pct.toFixed(0)}%
+        </span>
+      </div>
+      <div
+        className="rounded-full overflow-hidden"
+        style={{ height: "4px", background: "rgba(255,170,50,0.08)", position: "relative" }}
+      >
+        <div
+          style={{
+            position: "absolute",
+            left: 0,
+            top: 0,
+            height: "100%",
+            width: `${pct}%`,
+            background: barColor,
+            boxShadow: floodActive ? `0 0 6px ${barColor}` : "none",
+            transition: "width 0.8s ease, background 0.4s ease",
+          }}
+        />
+        {/* Upstream escalation watermark at 85% */}
+        <div
+          style={{
+            position: "absolute",
+            left: "85%",
+            top: 0,
+            height: "100%",
+            width: "1px",
+            background: "rgba(255,60,0,0.5)",
+          }}
+        />
+      </div>
+      <span style={{ color: "rgba(255,80,0,0.4)", fontSize: "7px", fontFamily: "JetBrains Mono", textAlign: "right" }}>
+        ↑ UPSTREAM THRESHOLD
+      </span>
+    </div>
+  );
+}
+
+function UpstreamStatusBadge({ status, provider }: { status: UpstreamStatus; provider: string | null }) {
+  const color = status === "active" ? "#ff4400" : status === "standby" ? "#ffaa33" : "#333";
+  const label = status === "active" ? "ACTIVE" : status === "standby" ? "STANDBY" : "NOT CONFIGURED";
+  const providerLabel = provider ? provider.toUpperCase() : "—";
+  return (
+    <div className="flex items-center gap-2">
+      <div
+        className="rounded-full flex-shrink-0"
+        style={{
+          width: "5px", height: "5px",
+          background: color,
+          boxShadow: status === "active" ? `0 0 6px ${color}` : "none",
+          animation: status === "active" ? "pulse 1s infinite" : "none",
+        }}
+      />
+      <span style={{ color, fontSize: "9px", fontFamily: "JetBrains Mono" }}>
+        {providerLabel}
+      </span>
+      <span style={{ color: "rgba(255,170,50,0.3)", fontSize: "8px", fontFamily: "JetBrains Mono" }}>
+        {label}
+      </span>
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 // Main App
 // ─────────────────────────────────────────────────────────────────────────────
 
@@ -185,6 +294,7 @@ export default function App() {
   const nationStateThreat = data.events.slice(0, 5).some(
     (e) => e.threatClass === "nation-state"
   );
+  const { layer14 } = data;
 
   const merkleShort = data.merkle.root.slice(0, 8) + "..." + data.merkle.root.slice(-8);
 
@@ -318,6 +428,41 @@ export default function App() {
               NATION-STATE PATTERN
             </div>
           )}
+
+          {/* Layer 14 — flood pressure wave overlay */}
+          {layer14.floodActive && (
+            <div
+              className="absolute inset-0 pointer-events-none"
+              style={{
+                background: `radial-gradient(ellipse at 50% 110%, rgba(255,100,0,${Math.min(0.12, layer14.absorptionCapacityPct * 0.0012)}) 0%, transparent 60%)`,
+                transition: "background 1.2s ease",
+              }}
+            />
+          )}
+          {layer14.floodActive && (
+            <div
+              className="absolute bottom-8 left-1/2 -translate-x-1/2 flex items-center gap-2"
+              style={{
+                border: "1px solid rgba(255,136,0,0.35)",
+                background: "rgba(20,8,0,0.75)",
+                borderRadius: "4px",
+                padding: "3px 8px",
+              }}
+            >
+              <div
+                className="rounded-full"
+                style={{
+                  width: "5px", height: "5px",
+                  background: "#ff8800",
+                  boxShadow: "0 0 5px rgba(255,136,0,0.8)",
+                  animation: "pulse 0.8s infinite",
+                }}
+              />
+              <span style={{ color: "#ff8800", fontSize: "8px", letterSpacing: "0.15em", fontFamily: "JetBrains Mono" }}>
+                TARPIT ACTIVE — {layer14.activeTarpitConnections.length} ABSORBED
+              </span>
+            </div>
+          )}
         </div>
 
         {/* ── RIGHT: Event feed + panels (1/3 width) ── */}
@@ -414,6 +559,66 @@ export default function App() {
               </div>
             </div>
           )}
+
+          {/* Layer 14 — Tarpit panel */}
+          <div style={{ borderBottom: "1px solid rgba(255,136,0,0.08)", flexShrink: 0 }}>
+            <div
+              className="px-4 py-2 flex items-center justify-between"
+              style={{ borderBottom: "1px solid rgba(255,136,0,0.06)" }}
+            >
+              <span style={{ color: layer14.floodActive ? "rgba(255,136,0,0.8)" : "rgba(255,170,50,0.45)", fontSize: "9px", letterSpacing: "0.15em" }}>
+                TARPIT / L14
+              </span>
+              {layer14.floodActive && (
+                <span style={{ color: "#ff8800", fontSize: "8px", letterSpacing: "0.1em", animation: "pulse 1.5s infinite" }}>
+                  FLOOD
+                </span>
+              )}
+            </div>
+            <div className="px-4 py-2 flex flex-col gap-2">
+              {/* Absorption meter */}
+              <AbsorptionMeter pct={layer14.absorptionCapacityPct} floodActive={layer14.floodActive} />
+
+              {/* Upstream absorber */}
+              <div className="flex items-center justify-between">
+                <span style={{ color: "rgba(255,170,50,0.35)", fontSize: "8px", fontFamily: "JetBrains Mono", letterSpacing: "0.1em" }}>UPSTREAM</span>
+                <UpstreamStatusBadge status={layer14.upstreamStatus} provider={layer14.upstreamProvider} />
+              </div>
+
+              {/* Bytes wasted */}
+              <div className="flex items-center justify-between">
+                <span style={{ color: "rgba(255,170,50,0.35)", fontSize: "8px", fontFamily: "JetBrains Mono", letterSpacing: "0.1em" }}>BYTES WASTED</span>
+                <span
+                  style={{
+                    color: "#ffaa33",
+                    fontSize: "11px",
+                    fontFamily: "JetBrains Mono",
+                    textShadow: layer14.floodActive ? "0 0 8px rgba(255,170,50,0.5)" : "none",
+                    transition: "text-shadow 0.5s",
+                  }}
+                >
+                  {layer14.bytesWasted.toLocaleString()}
+                </span>
+              </div>
+
+              {/* Tarpit connections — slow-pulsing amber nodes */}
+              {layer14.activeTarpitConnections.length > 0 && (
+                <div className="flex flex-col gap-1 mt-1">
+                  <span style={{ color: "rgba(255,170,50,0.3)", fontSize: "7px", letterSpacing: "0.12em", fontFamily: "JetBrains Mono" }}>
+                    ACTIVE CONNECTIONS — {layer14.activeTarpitConnections.length}
+                  </span>
+                  {layer14.activeTarpitConnections.slice(0, 4).map((n) => (
+                    <TarpitNode key={n.id} node={n} />
+                  ))}
+                  {layer14.activeTarpitConnections.length > 4 && (
+                    <span style={{ color: "rgba(255,170,50,0.2)", fontSize: "8px", fontFamily: "JetBrains Mono", paddingLeft: "4px" }}>
+                      +{layer14.activeTarpitConnections.length - 4} more tarpitted
+                    </span>
+                  )}
+                </div>
+              )}
+            </div>
+          </div>
         </div>
       </div>
 
@@ -470,7 +675,7 @@ export default function App() {
         {/* Layer status */}
         <div className="flex-1 px-4 py-2 overflow-hidden">
           <span style={{ color: "rgba(0,240,122,0.35)", fontSize: "8px", letterSpacing: "0.15em" }}>
-            THIRTEEN LAYERS
+            FOURTEEN LAYERS
           </span>
           <div className="grid grid-cols-3 gap-x-3 gap-y-1 mt-2">
             {data.layers.map((l) => (
@@ -478,6 +683,7 @@ export default function App() {
                 key={l.id}
                 {...l}
                 isProxy={l.id === 13}
+                isTarpit={l.id === 14}
               />
             ))}
           </div>

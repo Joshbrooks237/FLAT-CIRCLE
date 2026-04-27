@@ -513,6 +513,59 @@ export interface Layer13Config {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
+// Layer 14 — Traffic Absorption and Intelligent Tarpit
+// ─────────────────────────────────────────────────────────────────────────────
+
+export type UpstreamAbsorberProvider = "cloudflare" | "aws-shield" | "custom-webhook";
+
+export interface UpstreamAbsorberConfig {
+  /** Which upstream mitigation provider to integrate with. */
+  readonly provider: UpstreamAbsorberProvider;
+  /**
+   * Webhook URL for escalation events.
+   * Required for "custom-webhook"; optional bridge endpoint for the others.
+   */
+  readonly webhookUrl?: string;
+  /** API key for the upstream provider's firewall API. */
+  readonly apiKey?: string;
+}
+
+export interface Layer14Config {
+  readonly enabled: boolean;
+  /**
+   * Requests-per-second that triggers Stage 2 progressive degradation.
+   * @default 500
+   */
+  readonly floodThresholdRps?: number;
+  /**
+   * Requests-per-second above which local absorption is considered exceeded
+   * and upstream escalation is triggered (Stage 4).
+   * @default 2000
+   */
+  readonly upstreamEscalationRps?: number;
+  /**
+   * Maximum keepalive window (ms) before a tarpitted connection is released.
+   * @default 120000
+   */
+  readonly tarpitMaxWindowMs?: number;
+  /**
+   * Upstream absorber integration. Passive by default; activates only when
+   * upstreamEscalationRps is exceeded.
+   */
+  readonly upstreamAbsorber?: UpstreamAbsorberConfig;
+  /**
+   * Integrate with Layer 4 for early DDoS signature detection.
+   * @default true
+   */
+  readonly layer4Integration?: boolean;
+  /**
+   * Integrate with Layer 9 to clone and observe flood sessions.
+   * @default true
+   */
+  readonly layer9Integration?: boolean;
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 // Storage adapters
 // ─────────────────────────────────────────────────────────────────────────────
 
@@ -592,6 +645,7 @@ export interface LayerConfig {
   readonly layer11?: Layer11Config;
   readonly layer12?: Layer12Config;
   readonly layer13?: Layer13Config;
+  readonly layer14?: Layer14Config;
 }
 
 export interface FlatCircleConfig {
@@ -652,7 +706,11 @@ export type EventType =
   | "provider.recovered"
   | "campaign.matched"
   | "route.morphed"
-  | "temporal.gate.rejected";
+  | "temporal.gate.rejected"
+  | "tarpit.connection.absorbed"
+  | "flood.detected"
+  | "upstream.escalated"
+  | "upstream.deescalated";
 
 export interface FlatCircleEvent {
   readonly id: string;

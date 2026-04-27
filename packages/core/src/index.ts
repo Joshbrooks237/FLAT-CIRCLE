@@ -1,7 +1,7 @@
 /**
  * @flat-circle/core — Public API
  *
- * Thirteen layers. Four AI tiers. One philosophy.
+ * Fourteen layers. Four AI tiers. One philosophy.
  */
 
 // Types
@@ -27,6 +27,9 @@ export type {
   Layer11Config,
   Layer12Config,
   Layer13Config,
+  Layer14Config,
+  UpstreamAbsorberConfig,
+  UpstreamAbsorberProvider,
   FlatCircleRequest,
   FlatCircleResponse,
   LayerContext,
@@ -74,6 +77,20 @@ export { HoneypotMesh } from "./layers/layer2-honeypot.js";
 
 // Layer 8
 export { RecursiveHoneypot } from "./layers/layer8-recursive.js";
+
+// Layer 14
+export {
+  TrafficAbsorptionEngine,
+  TarpitEngine,
+  FloodSignatureDetector,
+  UpstreamAbsorberClient,
+} from "./layers/layer14-tarpit.js";
+export type {
+  TarpitConnection,
+  FloodSignature,
+  AbsorptionStatus,
+  UpstreamAbsorberStatus,
+} from "./layers/layer14-tarpit.js";
 
 // Layer 11
 export {

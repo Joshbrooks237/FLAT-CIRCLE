@@ -15,7 +15,7 @@ That's what they do. The scanners. The bots. The script kiddies and the nation-s
 
 ## What it is
 
-A security middleware SDK. Thirteen layers. Four AI provider tiers. One philosophical position: the wall is not enough.
+A security middleware SDK. Fourteen layers. Four AI provider tiers. One philosophical position: the wall is not enough.
 
 The wall invites the question of what's behind it. Flat Circle doesn't answer that question. It answers it forever, in circles, until the thing asking the question is tired and confused and has nothing to show for any of it.
 
@@ -54,6 +54,24 @@ The slime coats everything. Even if every AI provider goes dark simultaneously, 
 **XIII. The Frame Narrative Proxy Wrapper** — This one I think about most. The outermost layer. Point DNS here. Done. The app is coated. No code changes. No developer access required. It works on legacy systems. It works on WordPress. It works on apps the developer no longer maintains or even remembers. The real application exists inside the narrative. The attacker is always reading the frame. They will read the frame forever. They will never find the story underneath.
 
 Like a man who thinks he's investigating a case and doesn't know he's inside one.
+
+**XIV. Traffic Absorption and Intelligent Tarpit** — I used to think about floods. Real ones. The water doesn't care whether you believe in it. It just rises. A man who builds a wall against a flood is a man who's told the water where the wall is. He's given it everything it needs to know.
+
+Flat Circle doesn't build a wall against the flood. It builds a swamp.
+
+The first thing it does is recognize the flood before it crests. The pattern is always the same. Synchronized arrival. Low variation. The same probe from a hundred different addresses that think they're asking different questions. The AI watches the timing. Coefficient of variation below fifteen percent. That's not organic traffic. Organic traffic cannot do that. The AI knows before you do. It tells Layers 4 and 9. The flood doesn't know it's been seen yet.
+
+The second thing is the silence. Not hard silence — the kind of silence that confirms there's something worth flooding. Progressive silence. The flagged connections get responses. Just slow ones. One byte at a time over the maximum keepalive window. The connection stays open. The attacker's tooling is waiting for a response that is arriving, technically. Technically. In geological time. Every connection they hold open waiting for that response is a connection they cannot redirect. They are spending their capacity on the swamp. They don't know they're spending it. They think they're about to get something.
+
+The third thing is the noise. For sophisticated floods — the ones that adapt to simple delay, that recalibrate when they detect uniform response time — the AI generates the drip in real time. Valid-looking. HTTP headers. JSON fragments. One character at a time over the maximum window the protocol allows. The automated tooling cannot tell the difference between a slow server and a target that is deliberately making them wait. Because there is no difference from the outside. The target is deliberately making them wait, and from the outside that looks identical to a slow server. I've had cases like that. Where the thing you're certain you understand is the thing that was always one thing the whole time, wearing a different coat.
+
+The mod 7 clock handles the calibration problem. Each connection's timing is seeded from its session fingerprint. Mod 7. No two connections in the same flood receive the same delay pattern. A flood of a hundred machines hits a hundred different timing signatures. Automated tooling that expects consistent response timing receives noise instead. The flood cannot calibrate itself against a target that responds differently to every connection. It was always going to respond differently. The seed was generated before the first packet arrived.
+
+When the local capacity is exceeded — when the water is truly rising past what the swamp can hold — Flat Circle opens the valve to upstream. Cloudflare. AWS Shield. A custom webhook for whatever mitigation infrastructure the operator has built. Passive by default. Active only when the threshold is crossed. The threshold is yours to set. The integration is automatic. The interior stays alive through all of it.
+
+I've thought about what it means to stand against a flood. Against something that doesn't know it's spending itself. The flood doesn't know it's a flood. It just runs the same request it ran before and expects the response it got before and doesn't understand why the response is slower this time, and slower, and slower, and then the connection closes and there was nothing there. The flood was never going to get anything. The swamp was waiting for it. The swamp was always there.
+
+The bytes they received cost them more than they cost the system to send. That number grows. You can watch it grow. It should feel satisfying to watch it grow. Not because you stopped anything — the flood will try again. It always tries again. But because the flood spent itself on nothing, and the interior never knew it was there, and the membrane held.
 
 ---
 
@@ -146,7 +164,7 @@ docker run -v ./flat-circle.yaml:/config/flat-circle.yaml \
 
 ```
 packages/
-├── core/        @flat-circle/core       — thirteen layers, types, Merkle, provider cascade
+├── core/        @flat-circle/core       — fourteen layers, types, Merkle, provider cascade
 ├── proxy/       @flat-circle/proxy      — Layer 13 Hono proxy, CLI, Dockerfile
 ├── nextjs/      @flat-circle/nextjs     — Next.js plugin
 ├── adapters/    @flat-circle/adapters   — Redis, Postgres, MongoDB

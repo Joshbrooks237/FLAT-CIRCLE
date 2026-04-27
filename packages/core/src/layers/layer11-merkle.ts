@@ -26,7 +26,7 @@ import { merkleClock } from "../mod7.js";
 // Leaf types
 // ─────────────────────────────────────────────────────────────────────────────
 
-export type LeafKind = "request" | "response" | "honeypot" | "canary" | "anomaly" | "system";
+export type LeafKind = "request" | "response" | "honeypot" | "canary" | "anomaly" | "system" | "tarpit";
 
 export interface MerkleLeaf {
   readonly index: number;

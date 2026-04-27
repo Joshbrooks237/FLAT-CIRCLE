@@ -5,7 +5,7 @@ export type ThreatClass = "script-kiddie" | "automated-scanner" | "sophisticated
 
 export interface ThreatEvent {
   id: string;
-  type: "honeypot.triggered" | "honeypot.recursive.descent" | "canary.fired" | "behavioral.anomaly" | "session.shadowed" | "threat.classified" | "merkle.root.updated" | "provider.failover" | "campaign.matched";
+  type: "honeypot.triggered" | "honeypot.recursive.descent" | "canary.fired" | "behavioral.anomaly" | "session.shadowed" | "threat.classified" | "merkle.root.updated" | "provider.failover" | "campaign.matched" | "tarpit.connection.absorbed" | "flood.detected" | "upstream.escalated";
   timestamp: number;
   ip: string;
   sessionId: string;
@@ -46,6 +46,25 @@ export interface LayerState {
   hitCount: number;
 }
 
+export interface TarpitNodeState {
+  id: string;
+  ip: string;
+  connectedAt: number;
+  mod7Seed: number;
+  bytesDelivered: number;
+}
+
+export type UpstreamStatus = "active" | "standby" | "not-configured";
+
+export interface Layer14State {
+  floodActive: boolean;
+  activeTarpitConnections: TarpitNodeState[];
+  absorptionCapacityPct: number;
+  upstreamStatus: UpstreamStatus;
+  upstreamProvider: "cloudflare" | "aws-shield" | "custom-webhook" | null;
+  bytesWasted: number;
+}
+
 export interface DashboardState {
   events: ThreatEvent[];
   shadowSessions: ShadowSession[];
@@ -63,6 +82,7 @@ export interface DashboardState {
   };
   slimeEvents: SlimeEvent[];
   proxyActive: boolean;
+  layer14: Layer14State;
 }
 
 export interface SlimeEvent {
@@ -72,6 +92,14 @@ export interface SlimeEvent {
   y: number;
   timestamp: number;
 }
+
+const TARPIT_NARRATIONS = [
+  "Flood cluster detected — {count} IPs synchronized arrival pattern, CV {cv}. Progressive degradation engaged. Connections held open.",
+  "Volumetric spike from {ip} cluster. {rps} req/s. Tarpit stage 2 active. Attacker tooling is waiting for a response that arrives in geological time.",
+  "Botnet flood pattern confirmed. Slow-drip responses initiated. {count} connections tarpitted. {bytes} bytes consumed for zero attacker gain.",
+  "Low-variation timing signature — botnet fingerprint. Sessions cloned to Layer 9. Tarpit absorbing at mod7 seed {seed}/6.",
+  "Flood cluster {count} IPs. Peak {rps} req/s. Upstream absorber on standby. Local capacity {pct}% utilized. Membrane holds.",
+];
 
 const NARRATIONS = {
   "honeypot.triggered": [
@@ -119,6 +147,12 @@ const NARRATIONS = {
     "Probe pattern matches known campaign 'SilkRoad-7' seen across 14 other Flat Circle installations. Escalating immediately.",
     "Attack signature matched collective intelligence database. Campaign: automated credential harvesting wave. Origin cluster identified.",
   ],
+  "tarpit.connection.absorbed": TARPIT_NARRATIONS,
+  "flood.detected": TARPIT_NARRATIONS,
+  "upstream.escalated": [
+    "Local absorption capacity exceeded. Upstream escalation triggered. Cloudflare standing by. The flood spends itself against the absorber.",
+    "Traffic volume crossed upstream threshold. AWS Shield integration active. Tarpit continues. Interior untouched.",
+  ],
 };
 
 function randomNarration(type: ThreatEvent["type"], ip: string, sessionId: string, depth = 0, threatClass?: ThreatClass): string {
@@ -131,7 +165,13 @@ function randomNarration(type: ThreatEvent["type"], ip: string, sessionId: strin
     .replace("{class}", threatClass ?? "unknown")
     .replace("{score}", String(Math.floor(Math.random() * 5 + 4)))
     .replace("{leaves}", String(Math.floor(Math.random() * 200 + 50)))
-    .replace("{root}", Math.random().toString(16).slice(2, 18));
+    .replace("{root}", Math.random().toString(16).slice(2, 18))
+    .replace("{count}", String(Math.floor(Math.random() * 180 + 20)))
+    .replace("{rps}", String(Math.floor(Math.random() * 1200 + 300)))
+    .replace("{cv}", (Math.random() * 0.12).toFixed(3))
+    .replace("{bytes}", (Math.floor(Math.random() * 9000 + 1000)).toLocaleString())
+    .replace("{seed}", String(Math.floor(Math.random() * 7)))
+    .replace("{pct}", String(Math.floor(Math.random() * 70 + 20)));
 }
 
 function randomIp(): string {
@@ -158,6 +198,10 @@ const EVENT_TYPES: ThreatEvent["type"][] = [
   "canary.fired",
   "provider.failover",
   "campaign.matched",
+  "tarpit.connection.absorbed",
+  "tarpit.connection.absorbed",
+  "flood.detected",
+  "upstream.escalated",
 ];
 
 const THREAT_CLASSES: ThreatClass[] = [
@@ -183,6 +227,7 @@ const LAYER_NAMES = [
   "Merkle Integrity",
   "Threat Intelligence",
   "Frame Narrative Proxy",
+  "Traffic Absorption",
 ];
 
 const INITIAL_LAYERS: LayerState[] = LAYER_NAMES.map((name, i) => ({
@@ -222,6 +267,25 @@ function generateShadowSession(): ShadowSession {
   };
 }
 
+function generateTarpitNode(): TarpitNodeState {
+  return {
+    id: randomSessionId(),
+    ip: randomIp(),
+    connectedAt: Date.now() - Math.floor(Math.random() * 90_000),
+    mod7Seed: Math.floor(Math.random() * 7),
+    bytesDelivered: Math.floor(Math.random() * 200),
+  };
+}
+
+const INITIAL_LAYER14: Layer14State = {
+  floodActive: false,
+  activeTarpitConnections: [],
+  absorptionCapacityPct: 0,
+  upstreamStatus: "standby",
+  upstreamProvider: "cloudflare",
+  bytesWasted: 0,
+};
+
 export function useSimulatedData(): DashboardState {
   const [state, setState] = useState<DashboardState>({
     events: Array.from({ length: 8 }, generateEvent),
@@ -240,6 +304,7 @@ export function useSimulatedData(): DashboardState {
     },
     slimeEvents: [],
     proxyActive: true,
+    layer14: INITIAL_LAYER14,
   });
 
   const addSlimeEvent = useCallback((type: SlimeEvent["type"], x?: number, y?: number) => {
@@ -272,8 +337,9 @@ export function useSimulatedData(): DashboardState {
         if (event.type === "session.shadowed") newStats.shadowedSessions++;
         if (event.type === "canary.fired") newStats.canariesFired++;
         if (event.type === "merkle.root.updated") newStats.merkleLeaves += Math.floor(Math.random() * 20 + 5);
+        if (event.type === "tarpit.connection.absorbed" || event.type === "flood.detected") newStats.merkleLeaves += 1;
 
-        const newLayers = prev.layers.map((l) => {
+        let newLayers = prev.layers.map((l) => {
           if (event.type === "honeypot.triggered" && (l.id === 2 || l.id === 1)) return { ...l, hitCount: l.hitCount + 1 };
           if (event.type === "honeypot.recursive.descent" && l.id === 8) return { ...l, hitCount: l.hitCount + 1 };
           if (event.type === "session.shadowed" && l.id === 9) return { ...l, hitCount: l.hitCount + 1 };
@@ -303,6 +369,41 @@ export function useSimulatedData(): DashboardState {
           shadowSessions = [...prev.shadowSessions.slice(-4), generateShadowSession()];
         }
 
+        // Layer 14 simulation
+        let layer14 = prev.layer14;
+        if (event.type === "tarpit.connection.absorbed" || event.type === "flood.detected") {
+          const floodActive = Math.random() > 0.3;
+          const absorptionPct = floodActive ? Math.min(100, Math.random() * 80 + 10) : Math.max(0, layer14.absorptionCapacityPct - 5);
+          const newNode = generateTarpitNode();
+          const nodes = [...layer14.activeTarpitConnections.slice(-11), newNode];
+          // Drip bytes onto existing nodes
+          const updatedNodes = nodes.map((n) => ({
+            ...n,
+            bytesDelivered: n.bytesDelivered + Math.floor(Math.random() * 4 + 1),
+          }));
+          layer14 = {
+            floodActive,
+            activeTarpitConnections: updatedNodes,
+            absorptionCapacityPct: absorptionPct,
+            upstreamStatus: absorptionPct > 85 ? "active" : "standby",
+            upstreamProvider: layer14.upstreamProvider,
+            bytesWasted: layer14.bytesWasted + Math.floor(Math.random() * 1400 + 200),
+          };
+          newLayers = newLayers.map((l) => l.id === 14 ? { ...l, hitCount: l.hitCount + 1 } : l);
+        } else if (event.type === "upstream.escalated") {
+          layer14 = { ...layer14, upstreamStatus: "active", absorptionCapacityPct: Math.min(100, layer14.absorptionCapacityPct + 15), floodActive: true };
+        } else {
+          // Passive decay between flood events
+          layer14 = {
+            ...layer14,
+            absorptionCapacityPct: Math.max(0, layer14.absorptionCapacityPct - 1),
+            floodActive: layer14.absorptionCapacityPct > 15,
+            activeTarpitConnections: layer14.activeTarpitConnections.length > 0 && Math.random() > 0.7
+              ? layer14.activeTarpitConnections.slice(1)
+              : layer14.activeTarpitConnections,
+          };
+        }
+
         return {
           ...prev,
           events: [event, ...prev.events.slice(0, 49)],
@@ -311,6 +412,7 @@ export function useSimulatedData(): DashboardState {
           merkle: newMerkle,
           mod7: newMod7,
           shadowSessions,
+          layer14,
         };
       });
 
@@ -320,6 +422,8 @@ export function useSimulatedData(): DashboardState {
       if (event.type === "session.shadowed") addSlimeEvent("darken");
       if (event.type === "threat.classified" && event.threatClass === "nation-state") addSlimeEvent("flare");
       if (event.type === "provider.failover") addSlimeEvent("ring");
+      if (event.type === "flood.detected" || event.type === "tarpit.connection.absorbed") addSlimeEvent("darken");
+      if (event.type === "upstream.escalated") addSlimeEvent("ring");
     };
 
     // Staggered intervals to feel organic, not mechanical
