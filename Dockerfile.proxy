@@ -1,0 +1,45 @@
+FROM node:20-alpine AS builder
+WORKDIR /app
+
+# Install pnpm
+RUN npm install -g pnpm@9
+
+# Copy workspace manifests
+COPY package.json pnpm-workspace.yaml pnpm-lock.yaml ./
+COPY packages/core/package.json ./packages/core/
+COPY packages/proxy/package.json ./packages/proxy/
+
+# Install deps (frozen — reproducible build)
+RUN pnpm install --frozen-lockfile
+
+# Copy source
+COPY packages/core ./packages/core
+COPY packages/proxy ./packages/proxy
+
+# Build core first, then proxy
+RUN cd packages/core && pnpm build
+RUN cd packages/proxy && pnpm build
+
+# ── Runtime image ─────────────────────────────────────────────────────────────
+FROM node:20-alpine
+WORKDIR /app
+
+# Only the files needed to run
+COPY --from=builder /app/packages/proxy/dist ./packages/proxy/dist
+COPY --from=builder /app/packages/core/dist ./packages/core/dist
+COPY --from=builder /app/node_modules ./node_modules
+COPY --from=builder /app/packages/proxy/node_modules ./packages/proxy/node_modules
+COPY --from=builder /app/packages/core/node_modules ./packages/core/node_modules
+
+# Default config — override by mounting /config/flat-circle.yaml
+COPY flat-circle.yaml /config/flat-circle.yaml
+
+EXPOSE 8080
+
+# Config is passed via volume mount or env vars.
+# ORIGIN_URL env var overrides the originUrl in the yaml via entrypoint.
+COPY docker-entrypoint.sh /docker-entrypoint.sh
+RUN chmod +x /docker-entrypoint.sh
+
+ENTRYPOINT ["/docker-entrypoint.sh"]
+CMD ["node", "/app/packages/proxy/dist/cli.mjs", "--config", "/config/flat-circle.yaml"]

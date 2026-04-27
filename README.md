@@ -13,9 +13,98 @@ That's what they do. The scanners. The bots. The script kiddies and the nation-s
 
 ---
 
+## Quickstart
+
+**Requirements:** Docker and Docker Compose. That's it.
+
+```bash
+git clone https://github.com/Joshbrooks237/not-how-we-roll.git flat-circle
+cd flat-circle
+
+# Wrap any existing application — one environment variable
+ORIGIN_URL=http://your-app:3000 docker compose up
+```
+
+The proxy is now running on `:8080`.  
+The dashboard is now running on `:3001`.  
+Your application is coated.
+
+**If your application is running locally** and not inside Docker:
+
+```bash
+# macOS / Linux: host.docker.internal resolves to your machine from inside Docker
+ORIGIN_URL=http://host.docker.internal:3000 docker compose up
+```
+
+**With AI providers** (all optional — static fallback is always active):
+
+```bash
+ORIGIN_URL=http://your-app:3000 \
+OPENAI_API_KEY=sk-... \
+ANTHROPIC_API_KEY=sk-ant-... \
+docker compose up
+```
+
+**What runs where:**
+
+| Port | Service |
+|------|---------|
+| `:8080` | Flat Circle Proxy — your new public-facing address |
+| `:3001` | Dashboard — CISO-facing, not attacker-facing |
+
+Everything behind `:8080` is the proxy. Point your load balancer, your Cloudflare origin, your Nginx upstream, your Route 53 record — any of them — at `:8080`. The application on the other side never changes.
+
+---
+
+## Supported origins
+
+Any HTTP or HTTPS server. Language and framework are irrelevant.
+
+| Stack | ORIGIN_URL example |
+|-------|-------------------|
+| Node.js / Express | `http://localhost:3000` |
+| Node.js / Next.js | `http://localhost:3000` |
+| Python / FastAPI | `http://localhost:8000` |
+| Python / Django | `http://localhost:8000` |
+| Ruby / Rails | `http://localhost:3000` |
+| Go / Gin, Echo, Chi | `http://localhost:8080` |
+| Java / Spring Boot | `http://localhost:8080` |
+| PHP / Laravel | `http://localhost:8080` |
+| .NET / ASP.NET Core | `http://localhost:5000` |
+| WordPress | `http://localhost:80` |
+| Any legacy HTTP server | `http://host:port` |
+
+The proxy does not care what is behind it. It coats whatever it finds.
+
+---
+
 ## What it is
 
-A security middleware SDK. Twenty-one layers. Four AI provider tiers. One philosophical position: the wall is not enough.
+Security for any application. Any language. Any stack. Any machine.
+
+```bash
+# Your Python API
+ORIGIN_URL=http://localhost:8000 docker compose up
+
+# Your Rails app
+ORIGIN_URL=http://localhost:3000 docker compose up
+
+# Your WordPress site
+ORIGIN_URL=https://yoursite.com docker compose up
+
+# Your Go service, your .NET backend, your PHP app, your legacy system
+# that nobody maintains anymore and you're afraid to touch.
+# Any of them. All of them.
+ORIGIN_URL=http://anything docker compose up
+```
+
+No code changes. No SDK integration. No developer access to the wrapped application required. Point the proxy at your origin. Point your DNS at the proxy. Done. The application is coated.
+
+The proxy is the outermost layer. Everything else runs inside it — twenty-two layers of active defense, behavioral intelligence, cryptographic audit trail, and forensic record — invisible to the attacker, invisible to the application, visible only on the dashboard.
+
+---
+
+A security middleware SDK. Twenty-two layers. Four AI provider tiers. One philosophical position: the wall is not enough.
 
 The wall invites the question of what's behind it. Flat Circle doesn't answer that question. It answers it forever, in circles, until the thing asking the question is tired and confused and has nothing to show for any of it.
 
